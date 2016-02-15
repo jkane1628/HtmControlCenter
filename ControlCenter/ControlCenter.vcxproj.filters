@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;cxx;c;def</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h</Extensions>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>moc;h;cpp</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Debug">
+      <UniqueIdentifier>{4159f77f-e813-4744-9fea-38837464b33d}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Release">
+      <UniqueIdentifier>{cf2fb3c0-2d6c-4a2f-915e-e42ea30f5fb2}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="HTM Source">
+      <UniqueIdentifier>{bf0fa3e1-584f-4e52-b08d-a67f5d606973}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CJLib">
+      <UniqueIdentifier>{4e227458-c31c-49ab-a07e-17797676b8c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CJLib\include">
+      <UniqueIdentifier>{a8eb2750-ff04-42f1-88c9-70e04416f74c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CJLib\win">
+      <UniqueIdentifier>{429ed7ed-d969-468b-9b78-8a6a47b5e23d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CJLib\common">
+      <UniqueIdentifier>{08f5e31e-8b6d-490a-a545-8289c056f36b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="QCustomPlot">
+      <UniqueIdentifier>{9bc6a664-2755-4015-8722-27da253f9313}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GeneratedFiles\qrc_images.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\basicgraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_basicgraph.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\consoledock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_consoledock.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\controlcenter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_controlcenter.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\controlwidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_controlwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mainwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mainwindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mousecontrols.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mousecontrols.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\QCustomPlot\qcustomplot.cpp">
+      <Filter>QCustomPlot</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_qcustomplot.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Cell.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Classifier.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Column.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\ColumnDisp.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\DistalSynapse.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\FastHash.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\FastList.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\InputSpace.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\MemManager.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\NetworkManager.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\ProximalSynapse.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Region.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Segment.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\SegmentUpdateInfo.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\Synapse.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\View.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_View.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\win\CJConsole.cpp">
+      <Filter>CJLib\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\win\CJSem.cpp">
+      <Filter>CJLib\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\win\CJThread.cpp">
+      <Filter>CJLib\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\common\CJCli.cpp">
+      <Filter>CJLib\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\common\CJCliDefaultCommandSet.cpp">
+      <Filter>CJLib\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\common\CJList.cpp">
+      <Filter>CJLib\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\common\CJObject.cpp">
+      <Filter>CJLib\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CJLib\common\CJTrace.cpp">
+      <Filter>CJLib\common</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Resources\images.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\BasicGraph.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\Console.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\controlcenter.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\controlwidget.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\MouseControls.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\basicgraph.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\consoledock.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\controlcenter.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\controlwidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\mainwindow.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\mousecontrols.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\QCustomPlot\qcustomplot.h">
+      <Filter>QCustomPlot</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\htm\View.h">
+      <Filter>HTM Source</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeneratedFiles\ui_BasicGraph.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_Console.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_controlcenter.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_controlwidget.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_MouseControls.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Cell.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Classifier.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Column.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\ColumnDisp.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\DataSpace.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\DistalSynapse.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\FastHash.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\FastList.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\InputSpace.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\MemManager.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\MemObject.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\MemObjectType.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\NetworkManager.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\ProximalSynapse.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Region.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Segment.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\SegmentUpdateInfo.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Synapse.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\Utils.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJAssert.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJCli.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJCliDefaultCommandSet.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJConfig.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJConsole.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJList.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJMsgTask.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJObject.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJPersistConfig.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJPersistFile.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJPool.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJPoolBlocking.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJQueue.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJSem.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJSocket.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJThread.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJThreadMgr.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJTime.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJTrace.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CJLib\include\CJTypes.h">
+      <Filter>CJLib\include</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

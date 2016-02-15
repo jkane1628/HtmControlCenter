@@ -1,0 +1,380 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="GNU C/C++"
+    WorkingDir=".">
+    <Config
+        Name="Debug"
+        Type="gnuc"
+        DebugCallbackName="gdb"
+        Version="1"
+        OutputFile="/simulator/Hydroid2/CJLib/cjtest"
+        CompilerConfigName="Latest Version"
+        Defines="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                OutputExts="*.o"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ -c %xup %defd -g -o "%bd%n%oe" %i %f'/>
+            </Target>
+            <Target
+                Name="Link"
+                MenuCaption="&amp;Link"
+                ShowOnMenu="Never"
+                Dialog="_gnuc_options_form Link"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ %xup -g -o "%o" %objs'/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="../../CJLib/">
+                <Exec CmdLine="make cjtest"/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="../..">
+                <Exec CmdLine="./tools/vslick/vslick_scripts_build.sh rebuild DP2_PROTO sim"/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_gnuc_options_form Run/Debug"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="/simulator/Hydroid2/CJLib/">
+                <Exec
+                    CmdLine='vsdebugio -prog "%o" %~other'
+                    OtherOptions="cjtest"/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_gnuc_options_form Run/Debug"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                BuildFirst="1"
+                ClearProcessBuffer="1">
+                <Exec
+                    CmdLine='"%o" %~other'
+                    OtherOptions="cjtest"/>
+            </Target>
+            <Target
+                Name="dash"
+                MenuCaption="-"
+                Deletable="0">
+                <Exec/>
+            </Target>
+            <Target
+                Name="GNU C Options"
+                MenuCaption="GNU C &amp;Options..."
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0"
+                SaveOption="SaveNone">
+                <Exec
+                    CmdLine="gnucoptions"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Hydroid GCC"
+                MenuCaption="&amp;Hydroid GCC"
+                RunFromDir="../../"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveAll">
+                <Exec CmdLine="make "/>
+            </Target>
+            <Target
+                Name="Execute cjtest"
+                MenuCaption="&amp;Execute cjtest"
+                RunFromDir="../"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                BuildFirst="1">
+                <Exec CmdLine="gnome-terminal -e ./cjtest"/>
+            </Target>
+        </Menu>
+        <List Name="GNUC Options">
+            <Item
+                Name="LinkerOutputType"
+                Value="Executable"/>
+        </List>
+        <Includes>
+            <Include Dir="/usr/include/c++/4.4.4/"/>
+        </Includes>
+        <Libs PreObjects="0"/>
+    </Config>
+    <Config
+        Name="Release"
+        Type="gnuc"
+        DebugCallbackName="gdb"
+        Version="1"
+        OutputFile="/simulator/Hydroid2/CJLib/cjtest"
+        CompilerConfigName="Latest Version"
+        Defines="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                Dialog="_gnuc_options_form Compile"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                OutputExts="*.o"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ -c %xup %defd -o "%bd%n%oe" %i %f'/>
+            </Target>
+            <Target
+                Name="Link"
+                MenuCaption="&amp;Link"
+                ShowOnMenu="Never"
+                Dialog="_gnuc_options_form Link"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec CmdLine='g++ %xup -o "%o" %objs'/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="../../CJLib/">
+                <Exec CmdLine="make cjtest"/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="../..">
+                <Exec CmdLine="./tools/vslick/vslick_scripts_build.sh rebuild DP2_PROTO sim"/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_gnuc_options_form Run/Debug"
+                Deletable="0"
+                SaveOption="SaveAll"
+                RunFromDir="/simulator/Hydroid2/CJLib/">
+                <Exec
+                    CmdLine='vsdebugio -prog "%o" %~other'
+                    OtherOptions="cjtest"/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_gnuc_options_form Run/Debug"
+                CaptureOutputWith="ProcessBuffer"
+                Deletable="0"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                BuildFirst="1"
+                ClearProcessBuffer="1">
+                <Exec
+                    CmdLine='"%o" %~other'
+                    OtherOptions="cjtest"/>
+            </Target>
+            <Target
+                Name="dash"
+                MenuCaption="-"
+                Deletable="0">
+                <Exec/>
+            </Target>
+            <Target
+                Name="GNU C Options"
+                MenuCaption="GNU C &amp;Options..."
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0"
+                SaveOption="SaveNone">
+                <Exec
+                    CmdLine="gnucoptions"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Hydroid GCC"
+                MenuCaption="&amp;Hydroid GCC"
+                RunFromDir="../../"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveAll">
+                <Exec CmdLine="make "/>
+            </Target>
+            <Target
+                Name="Execute cjtest"
+                MenuCaption="&amp;Execute cjtest"
+                RunFromDir="../"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                BuildFirst="1">
+                <Exec CmdLine="gnome-terminal -e ./cjtest"/>
+            </Target>
+        </Menu>
+        <List Name="GNUC Options">
+            <Item
+                Name="LinkerOutputType"
+                Value="Executable"/>
+        </List>
+        <Includes>
+            <Include Dir="/usr/include/c++/4.4.4/"/>
+        </Includes>
+        <Libs PreObjects="0"/>
+    </Config>
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.c;*.C;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.prg;*.pas;*.dpr;*.asm;*.s;*.bas;*.java;*.cs;*.sc;*.e;*.cob;*.html;*.rc;*.tcl;*.py;*.pl;*.d;*.m;*.mm;*.go">
+            <F N="../../Navio/ADS1115.cpp"/>
+            <F N="../../Navio/obj/gcc/ADS1115.d"/>
+            <F N="../linux/CJAssert.cpp"/>
+            <F N="../common/CJCli.cpp"/>
+            <F N="../linux/CJCli.cpp"/>
+            <F N="../common/CJCliDefaultCommandSet.cpp"/>
+            <F N="../linux/CJConsole.cpp"/>
+            <F N="../linux/CJJob.cpp"/>
+            <F N="../common/CJLibTest_Main.cpp"/>
+            <F N="../linux/CJLinuxSysCmd.cpp"/>
+            <F N="../linux/CJLinuxSysCmdMgr.cpp"/>
+            <F N="../common/CJList.cpp"/>
+            <F N="../common/CJObject.cpp"/>
+            <F N="../linux/CJPersistFile.cpp"/>
+            <F N="../linux/CJPool.cpp"/>
+            <F N="../linux/CJPoolBlocking.cpp"/>
+            <F N="../linux/CJQueue.cpp"/>
+            <F N="../linux/CJSem.cpp"/>
+            <F N="../linux/CJThread.cpp"/>
+            <F N="../linux/CJThreadMgr.cpp"/>
+            <F N="../linux/CJTime.cpp"/>
+            <F N="../common/CJTrace.cpp"/>
+            <F N="../../Navio/gpio.cpp"/>
+            <F N="../../Navio/obj/gcc/gpio.d"/>
+            <F N="../../App/HydroidApp.cpp"/>
+            <F N="../../App/obj/gcc/HydroidApp.d"/>
+            <F N="../../Navio/I2Cdev.cpp"/>
+            <F N="../../Navio/obj/gcc/I2Cdev.d"/>
+            <F N="../../App/JoystickInput.cpp"/>
+            <F N="../../App/MainControlLoop.cpp"/>
+            <F N="../../Navio/MB85RC04.cpp"/>
+            <F N="../../Navio/obj/gcc/MB85RC04.d"/>
+            <F N="../../Navio/MB85RC256.cpp"/>
+            <F N="../../Navio/obj/gcc/MB85RC256.d"/>
+            <F N="../../App/MotorDrv_8835.cpp"/>
+            <F N="../../App/obj/gcc/MotorDrv_8835.d"/>
+            <F N="../../Navio/MPU9250.cpp"/>
+            <F N="../../Navio/obj/gcc/MPU9250.d"/>
+            <F N="../../Navio/MS5611.cpp"/>
+            <F N="../../Navio/obj/gcc/MS5611.d"/>
+            <F N="../../App/PanTiltServo.cpp"/>
+            <F N="../../Navio/PCA9685.cpp"/>
+            <F N="../../Navio/obj/gcc/PCA9685.d"/>
+            <F N="../../App/pid_loop.cpp"/>
+            <F N="../../Navio/Ublox.cpp"/>
+            <F N="../../Navio/obj/gcc/Ublox.d"/>
+            <F N="../../App/wiringPi.c"/>
+        </Folder>
+        <Folder
+            Name="Header Files"
+            Filters="*.h;*.H;*.hh;*.hpp;*.hxx;*.inc;*.sh;*.cpy;*.if">
+            <F N="../../Navio/ADS1115.h"/>
+            <F N="../include/CJAssert.h"/>
+            <F N="../include/CJCli.h"/>
+            <F N="../include/CJCliDefaultCommandSet.h"/>
+            <F N="../include/CJConfig.h"/>
+            <F N="../include/CJConsole.h"/>
+            <F N="../include/CJJob.h"/>
+            <F N="../common/CJLibTest.h"/>
+            <F N="../include/CJLinuxSysCmd.h"/>
+            <F N="../include/CJLinuxSysCmdMgr.h"/>
+            <F N="../include/CJList.h"/>
+            <F N="../include/CJMsgTask.h"/>
+            <F N="../include/CJObject.h"/>
+            <F N="../include/CJPersistConfig.h"/>
+            <F N="../include/CJPersistFile.h"/>
+            <F N="../include/CJPool.h"/>
+            <F N="../include/CJPoolBlocking.h"/>
+            <F N="../include/CJQueue.h"/>
+            <F N="../include/CJSem.h"/>
+            <F N="../include/CJThread.h"/>
+            <F N="../include/CJThreadMgr.h"/>
+            <F N="../include/CJTime.h"/>
+            <F N="../include/CJTrace.h"/>
+            <F N="../include/CJTypes.h"/>
+            <F N="../../Navio/gpio.h"/>
+            <F N="../../App/HydroidApp.h"/>
+            <F N="../../Navio/I2Cdev.h"/>
+            <F N="../../App/JoystickInput.h"/>
+            <F N="../../App/MainControlLoop.h"/>
+            <F N="../../Navio/MB85RC04.h"/>
+            <F N="../../Navio/MB85RC256.h"/>
+            <F N="../../App/MotorDrv_8835.h"/>
+            <F N="../../Navio/MPU9250.h"/>
+            <F N="../../Navio/MS5611.h"/>
+            <F N="../../App/PanTiltServo.h"/>
+            <F N="../../Navio/PCA9685.h"/>
+            <F N="../../App/pid_loop.h"/>
+            <F N="../../Navio/SPIdev.h"/>
+            <F N="../../Navio/Ublox.h"/>
+            <F N="vslick_scripts_build.sh"/>
+            <F N="../../App/wiringPi.h"/>
+        </Folder>
+        <Folder
+            Name="Resource Files"
+            Filters="*.ico;*.cur;*.dlg"/>
+        <Folder
+            Name="Bitmaps"
+            Filters="*.bmp"/>
+        <Folder
+            Name="Other Files"
+            Filters="">
+            <F N="../../Navio/obj/gcc/ADS1115.o"/>
+            <F N="../../App/obj/gcc/App.a"/>
+            <F
+                N="../../App/App.mak"
+                Type="Makefile"/>
+            <F
+                N="../CJLib.mak"
+                Type="Makefile"/>
+            <F N="../../Navio/obj/gcc/gpio.o"/>
+            <F N="../../App/obj/gcc/HydroidApp.o"/>
+            <F N="../../Navio/obj/gcc/I2Cdev.o"/>
+            <F N="../../Navio/obj/gcc/MB85RC04.o"/>
+            <F N="../../Navio/obj/gcc/MB85RC256.o"/>
+            <F N="../../Navio/obj/gcc/MPU9250.o"/>
+            <F N="../../Navio/obj/gcc/MS5611.o"/>
+            <F N="../../Navio/obj/gcc/Navio.a"/>
+            <F
+                N="../../Navio/Navio.mak"
+                Type="Makefile"/>
+            <F N="../../Navio/obj/gcc/PCA9685.o"/>
+            <F
+                N="../../Build/subsys_common.mak"
+                Type="Makefile"/>
+            <F N="../../sysCmdErrorLog.txt"/>
+            <F N="../../Navio/obj/gcc/Ublox.o"/>
+            <F N="vslick_CJLIB.vpj"/>
+            <F N="vslick_CJLIB.vpw"/>
+            <F N="vslick_CJLIB.vpwhistu"/>
+            <F N="vslick_CJLIB.vtg"/>
+        </Folder>
+    </Files>
+</Project>
