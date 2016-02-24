@@ -5,7 +5,7 @@
 #include "CJSem.h"
 
 
-CJSem::CJSem() : CJObject(NULL, "")
+CJSem::CJSem()
 {
    DWORD err;
    d_win_semaphore = CreateSemaphore(NULL, 0, 0xFFFF, NULL);
@@ -15,7 +15,7 @@ CJSem::CJSem() : CJObject(NULL, "")
    }
 }
 
-CJSem::CJSem( U32 starting_count, char const* pSemName) : CJObject("LIB::SEM::%s", pSemName)
+CJSem::CJSem( U32 starting_count)
 {
    DWORD err;
    d_win_semaphore = CreateSemaphore(NULL, starting_count, 0xFFFF, NULL);

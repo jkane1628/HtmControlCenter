@@ -5,7 +5,6 @@
 #define __CJCLI_H_
 
 #include "CJTypes.h"
-#include "CJObject.h"
 #include "CJConfig.h"
 
 class CJCli;
@@ -44,20 +43,22 @@ typedef CliReturnCode (*CliFunction)(CJConsole*, CliCommand*, CliParams*);
 struct CliCommand
 {
    char const* command_name;
-   char const* short_desc;
-   char const* usage;
    CliAccessLevel access_level;
+   char const* short_desc;
    CliFunction cbCliFunc;
+
 };
 
-class CliCommandSetBase
-{
-public:
-   CliCommand* dpCommandSet;
-};
+#define CJCLI_CMDSET_OBJECT(CMDSET_CLASSNAME) g ## CMDSET_CLASSNAME
+#define CJCLI_CREATE_FCNMAPPER(CMDSET_CLASSNAME) CMDSET_CLASSNAME g ## CMDSET_CLASSNAME ;
+#define CJCLI_MAP_CMD_TO_FCN(CMDSET_CLASSNAME,CMD_STR,FCN_NAME) CliReturnCode gmapCliCommand_ ## CMD_STR ## ( CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams ) { return g ## CMDSET_CLASSNAME ## . ## FCN_NAME ## (pConsole, pCmd, pParams); }
+#define CJCLI_COMMAND_DEFINTION_START(CMDSET_CLASSNAME) CliCommand CMDSET_CLASSNAME ## ::CommandDescriptorArray[] = {
+#define CJCLI_COMMAND_DESCRIPTOR(CMD_STR,CliAccessLevel,DESC_STR) { # CMD_STR , CliAccessLevel , ## DESC_STR ## , gmapCliCommand_ ## CMD_STR ## },
+#define CJCLI_COMMAND_DEFINTION_END {"",eCliAccess_Hidden,"",NULL} } ;
+
 
 // NOTE: DO NOT USE THIS MACRO IF MULTIPLE CLIs ARE BEING USED, THIS ONLY REGISTERS WITH THE GLOBAL CLI INSTANCE
-#define CJTRACE_REGISTER_CLI_COMMAND_OBJ(pObj) CJCli::spGlobalCli->RegisterCliCommandSet(pObj);
+#define CJTRACE_REGISTER_CLI_COMMAND_OBJ(CMDSET_CLASSNAME) CJCli::spGlobalCli->RegisterCliCommandSet(CMDSET_CLASSNAME ## ::CommandDescriptorArray);
 
 enum CliSessionState
 {
@@ -98,7 +99,7 @@ enum CliSpecialKeys
    eCLI_KEY_DELETE
 };
 
-class CJCli : public CJObject
+class CJCli
 {
 public:
    CJCli(char const* pCliNameStr, CJConsole* pConsole);
@@ -108,7 +109,7 @@ public:
    BOOL InitiateCliShutdown();
    BOOL BlockTillCliShutdown();
 
-   BOOL RegisterCliCommandSet( CliCommandSetBase* pCliCommandSetBase);
+   BOOL RegisterCliCommandSet(CliCommand* pCommandSet);
 
    void RunCli();
 
@@ -143,7 +144,6 @@ private:
    CJConsole* dpConsole;
    CJThread* dpSessionThread;
    CliSessionState dState;
-   CliDefaultCommandSet* dpDefaultCliCommandSet;
    CliCommand* dpUserCliCommandSetAry[MAX_NUM_USER_CLI_COMMAND_SETS];
    
    int  dInputFileDescriptor;

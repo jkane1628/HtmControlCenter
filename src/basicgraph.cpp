@@ -4,9 +4,8 @@
 #include "CJConsole.h"
 #include "basicgraph.h"
 
-
+/*
 BasicGraph* CliGraphCommandSet::dpBasicGraph = NULL;
-
 CliCommand CliGraphCommandSet::CommandSet[] =
 {
    { "lg",
@@ -20,6 +19,7 @@ CliCommand CliGraphCommandSet::CommandSet[] =
 
    {"","","",eCliAccess_Hidden} // This must be the last command
 };
+
 
 CliReturnCode CliGraphCommandSet::CliCommand_loadGraph(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
 {
@@ -37,16 +37,16 @@ CliReturnCode CliGraphCommandSet::CliCommand_loadGraph(CJConsole* pConsole, CliC
    }
    return eCliReturn_Success;   
 }
-
+*/
 
 BasicGraph::BasicGraph(QWidget *parent)
-: QFrame(parent), CJObject("BG","")
+: QFrame(parent)
 {
 	ui.setupUi(this);
    OnReplot();
 
-   CJTRACE_REGISTER_TRACE_OBJ(this);
-   CJTRACE_REGISTER_CLI_COMMAND_OBJ(new CliGraphCommandSet(this));
+   CJTRACE_SET_TRACEID_STRING(eTraceId_BasicGraph, "BG");
+   //CJTRACE_REGISTER_CLI_COMMAND_OBJ(new CliGraphCommandSet(this));
 
    connect(this, SIGNAL(ExternalReplot()), this, SLOT(OnReplot()));
 }

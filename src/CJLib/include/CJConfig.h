@@ -57,10 +57,10 @@
 // CJTrace
 // 
 //////////////////////////////////////////////////////////
-#define CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES 1024*1024
-#define CJTRACE_DEFAULT_LEVEL TRACE_ERROR_LEVEL
-#define MAX_NUM_REGISTERED_TRACE_OBJECTS 128
-#define MAX_NUM_REGISTERED_CONSOLE 1
+#define CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES (256*1024)
+#define CJTRACE_DEFAULT_LEVEL TRACE_HIGH_LEVEL
+#define CJTRACE_PREFIX_STRING_MAX_LENGTH 4
+#define MAX_NUM_REGISTERED_CONSOLE 2
 
 //////////////////////////////////////////////////////////
 // 

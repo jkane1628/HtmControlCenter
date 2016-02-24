@@ -21,6 +21,7 @@ public:
 	QStringList labels;
 
 	// Methods
+   void Classify();
 
 	DataSpaceType GetDataSpaceType() {return DATASPACE_TYPE_CLASSIFIER;}
 
@@ -33,5 +34,9 @@ public:
 
 	void SetInputSpace(InputSpace *_inputspace) {inputspace = _inputspace;}
 	void SetRegion(Region *_region) {region = _region;}
+
+private:
+
+
 };
 

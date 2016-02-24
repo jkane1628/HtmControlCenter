@@ -10,13 +10,16 @@
 #include "CJCli.h"
 #include "CJCliDefaultCommandSet.h"
 
+#undef CJTRACE_MODULE_ID
+#define CJTRACE_MODULE_ID eTraceId_CJ_Cli
+
 CJCli* CJCli::spActiveCli = NULL;
 CJCli* CJCli::spGlobalCli = NULL;
 
 
-CJCli::CJCli(char const* pCliNameStr, CJConsole* pConsole) : CJObject("LIB::CLI::", pCliNameStr)
+CJCli::CJCli(char const* pCliNameStr, CJConsole* pConsole)
 {
-   CJTRACE_REGISTER_TRACE_OBJ(this);
+   CJTRACE_SET_TRACEID_STRING(eTraceId_CJ_Cli,"CLI");
 
    // Register the first CLI as the global
    if (spGlobalCli == NULL)
@@ -24,7 +27,6 @@ CJCli::CJCli(char const* pCliNameStr, CJConsole* pConsole) : CJObject("LIB::CLI:
 
    dpConsole = pConsole;
    dpSessionThread = new CJThread("MAINTHREAD");
-   dpDefaultCliCommandSet = new CliDefaultCommandSet(this);
    dState = eCLI_STATE_READY_FOR_CONNECTION;
 
    dLineBufferCount = 0;
@@ -37,6 +39,8 @@ CJCli::CJCli(char const* pCliNameStr, CJConsole* pConsole) : CJObject("LIB::CLI:
    // History Buffer Init
    memset(dHistoryBufferSizes, 0, sizeof(int) * MAX_HISTORY_ENTRIES);
    dHistoryBufferNextIndex = 0;
+
+   CJTRACE_REGISTER_CLI_COMMAND_OBJ(CliDefaultCommandSet)
 }
 
 
@@ -95,16 +99,17 @@ BOOL CJCli::BlockTillCliShutdown()
    return TRUE;
 }
 
-BOOL CJCli::RegisterCliCommandSet( CliCommandSetBase* pCliCommandSetBase)
+BOOL CJCli::RegisterCliCommandSet(CliCommand* pCommandSet)
 {
    for( int i=0; i < MAX_NUM_USER_CLI_COMMAND_SETS; i++)
    {
       if( dpUserCliCommandSetAry[i] == NULL)
       {
-         dpUserCliCommandSetAry[i] = pCliCommandSetBase->dpCommandSet;
+         dpUserCliCommandSetAry[i] = pCommandSet;
          return TRUE;
       }
    }
+   //CJASSERT("Too many CLI command sets registered");
    return FALSE;  // TODO: SHOULD BE A FAULT OR ASSERT
 }
 
@@ -542,7 +547,6 @@ void CJCli::ParseCommandLine( char* pLineBuffer, int numChars)
 {
    //dpConsole->Printf("PARSING LINE (cnt=%d): %s", numChars, pLineBuffer);
    CliReturnCode cliRc = eCliReturn_UnknownCommand;
-   CliCommand* pDefaultCommand = dpDefaultCliCommandSet->DefaultCommandSet;
    CliCommand* pUserCommand;
    int cliCommandSetIndex = 0;
    CliParams paramstruct;
@@ -590,19 +594,6 @@ void CJCli::ParseCommandLine( char* pLineBuffer, int numChars)
       return;
    }
 
-   while (pDefaultCommand->command_name[0] != 0)
-   {
-      if( strcmp( paramstruct.str[0], pDefaultCommand->command_name) == 0)
-      {
-         //dpConsole->Printf("Default Command Found: cmd=%s, numParams=%d\n", paramstruct.str[0], paramstruct.numParams);
-         spActiveCli = this;  // Set this up, in the cases where the static CLI command handlers need to know which CLI is calling the command
-         cliRc = pDefaultCommand->cbCliFunc(dpConsole,pDefaultCommand,&paramstruct);
-         spActiveCli = NULL;
-         break;
-      }
-      pDefaultCommand++;
-   }
-
    while (dpUserCliCommandSetAry[cliCommandSetIndex] != NULL)
    {
       pUserCommand = dpUserCliCommandSetAry[cliCommandSetIndex];
@@ -610,8 +601,9 @@ void CJCli::ParseCommandLine( char* pLineBuffer, int numChars)
       {
          if( strcmp( paramstruct.str[0], pUserCommand->command_name) == 0)
          {
-            //dpConsole->Printf("User Command Found: cmd=%s, numParams=%d\n", paramstruct.str[0], paramstruct.numParams);
-            cliRc = pUserCommand->cbCliFunc(dpConsole,pUserCommand,&paramstruct);
+            spActiveCli = this;  // Set this up, in the cases where the static CLI command handlers need to know which CLI is calling the command
+            cliRc = pUserCommand->cbCliFunc(dpConsole, pUserCommand, &paramstruct);
+            spActiveCli = NULL;
             break;
          }
          pUserCommand++;
@@ -748,17 +740,10 @@ void CJCli::DisplayHistoryBuffer(CJConsole* pLocalConsole)
 
 void CJCli::DisplayRegisteredCliCommands(CJConsole* pLocalConsole)
 {
-   CliCommand* pDefaultCommand = dpDefaultCliCommandSet->DefaultCommandSet;
    CliCommand* pUserCommand;
    int cliCommandSetIndex = 0;
 
    pLocalConsole->Printf("  CLI Commands:\n");
-   while (pDefaultCommand->command_name[0] != 0)
-   {
-      pLocalConsole->Printf("    %-24s  %s\n", pDefaultCommand->command_name, pDefaultCommand->short_desc);
-      pDefaultCommand++;
-   }
-
    while (dpUserCliCommandSetAry[cliCommandSetIndex] != NULL)
    {
       pUserCommand = dpUserCliCommandSetAry[cliCommandSetIndex];   

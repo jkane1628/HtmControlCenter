@@ -18,18 +18,46 @@
 
 #include <QtWidgets>
 
+#include "CJTrace.h"
+#include "CJCli.h"
+
 #include "htm/View.h"
 #include "htm/NetworkManager.h"
 #include "mousecontrols.h"
 #include "controlwidget.h"
 #include "consoledock.h"
 #include "basicgraph.h"
+
+
 #include "mainwindow.h"
 
 
+#undef CJTRACE_MODULE_ID
+#define CJTRACE_MODULE_ID eTraceId_MainWindow
+
+// Map CLI commands to associated functions for the default command set
+CJCLI_CREATE_FCNMAPPER(CliMainWindowCommandSet)
+CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, ln, CliCommand_loadNetwork)
+
+// Define CLI commands for the default command set
+CJCLI_COMMAND_DEFINTION_START(CliMainWindowCommandSet)
+CJCLI_COMMAND_DESCRIPTOR(ln, eCliAccess_Guest, "Loads a HTM given network file, or the last loaded network file")
+CJCLI_COMMAND_DEFINTION_END
+
+
+
+
+/*
+
+   "ln <filename>\n"\
+   "   PARAMS:"\
+   "     filename - full path of .xml network datafile, or blank to load last file",
+
+*/
 
 MainWindow::MainWindow()
 {
+
    // Create the NetworkManager
    dpConsoleDock = new ConsoleDock(this);  // This creates the CLI Object...TODO: BREAK OUT CLI AND CONSOLE CREATION
    dpHtmNetworkManager = new NetworkManager();
@@ -41,6 +69,12 @@ MainWindow::MainWindow()
 
    pControlWidget->RegisterHtmView(dpHtmView1, dpHtmView2);
    
+   CJTRACE_SET_TRACEID_STRING(eTraceId_MainWindow, "MW")
+   CJTRACE_REGISTER_CLI_COMMAND_OBJ(CliMainWindowCommandSet)
+   CJCLI_CMDSET_OBJECT(CliMainWindowCommandSet).Initialize(this);
+   
+   //connect(&CJCLI_CMDSET_OBJECT(CliMainWindowCommandSet), CliMainWindowCommandSet::LoadNetworkFileSignal(QString, CliReturnCode*), this, cliLoadNetworkFile(QString, CliReturnCode*)/*, Qt::BlockingQueuedConnection*/);
+
 
    createActions();
    createMenus();
@@ -73,7 +107,7 @@ void MainWindow::createMenus()
 
    loadNetworkAct = new QAction(tr("&Load Network..."), this);
    fileMenu->addAction(loadNetworkAct);
-   connect(loadNetworkAct, SIGNAL(triggered()), this, SLOT(loadNetworkFile()));
+   connect(loadNetworkAct, SIGNAL(triggered()), this, SLOT(menuLoadNetworkFile()));
 
    loadDataAct = new QAction(tr("&Load Data..."), this);
    fileMenu->addAction(loadDataAct);
@@ -130,41 +164,37 @@ void MainWindow::ViewMode_UpdateWhileRunning()
    pControlWidget->SetUpdateWhileRunning(viewDuringRunAct->isChecked());
 }
 
-
-void MainWindow::loadNetworkFile()
+void MainWindow::menuLoadNetworkFile()
 {
+   QString error_msg;
    QString fileName = QFileDialog::getOpenFileName(this, tr("Load the network architecture"), tr(""), tr("XML File (*.xml)"));
-
    if (!fileName.isEmpty())
    {
-      // Load network
-      QFile* file = new QFile(fileName);
-
-      // If the file failed to open, display message.
-      if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
-      {
-         QMessageBox::critical(this, "Error loading network.", QString("Couldn't open ") + fileName, QMessageBox::Ok);
-         return;
-      }
-
-      // Load the XML stream from the file.
-      QXmlStreamReader xml(file);
-
-      // Parse the XML file
-      QString error_msg;
-      bool result = dpHtmNetworkManager->LoadNetwork(QFileInfo(*file).fileName(), xml, error_msg);
-
-      if (result == false)
-      {
+      if (!dpHtmNetworkManager->LoadNetwork(fileName, error_msg))
          QMessageBox::critical(this, "Error loading network.", error_msg, QMessageBox::Ok);
-         return;
-      }
-
-      pControlWidget->InitForNewNetworkLoad();
-
-      // Update the UI to reflect the network that has been loaded.
-      pControlWidget->UpdateUIForNetwork();
+      else
+         pControlWidget->InitForNewNetworkLoad();
    }
+}
+
+void MainWindow::cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc)
+{   
+   QString error_msg;
+   bool result;
+
+   if (fileName.isEmpty())
+      result = dpHtmNetworkManager->LoadLastNetwork(error_msg);
+   else
+      result = dpHtmNetworkManager->LoadNetwork(fileName, error_msg);
+
+   if (result == false)
+   {
+      *pCliRc = eCliReturn_Failed;
+      return;
+   }
+   pControlWidget->InitForNewNetworkLoad();
+   *pCliRc = eCliReturn_Success;
+   return;
 }
 
 
@@ -297,3 +327,26 @@ void MainWindow::createMainFrame()
     resize(desktop.screenGeometry().width() * 0.75, desktop.screenGeometry().height() * 0.75);
 }
 
+
+
+CliReturnCode CliMainWindowCommandSet::CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
+{
+   CliReturnCode rc;
+   QString fileName;
+
+   if (pParams->numParams == 1)
+   {
+      fileName = "";      
+   }
+   else if (pParams->numParams == 2)
+   {
+      fileName = pParams->parsedBuffer[1];
+   }
+   else
+      return eCliReturn_InvalidParam;
+
+   // Send signal to main window so HTM & GUI operations can execute on proper thread
+   LoadNetworkFileSignal(fileName, &rc);
+
+   return eCliReturn_Success;
+}

@@ -60,14 +60,14 @@ CJListElement::CJListElement()
 
 
 
-CJList::CJList( char const* pListNameStr) : CJObject("LIB::LIST::", pListNameStr)
+CJList::CJList( char const* pListNameStr)
 {
    dpHeadElement = NULL;
    dpTailElement = NULL;
    dNumElements = 0;
 }
 
-CJList::CJList( char const* pListNameStrBase, char const* pListNameStr) : CJObject(pListNameStrBase, pListNameStr)
+CJList::CJList( char const* pListNameStrBase, char const* pListNameStr)
 {
    dpHeadElement = NULL;
    dpTailElement = NULL;
@@ -76,12 +76,6 @@ CJList::CJList( char const* pListNameStrBase, char const* pListNameStr) : CJObje
 
 CJList::~CJList( ) 
 {}
-
-
-void CJList::AddTail( CJListObject* pListObject)
-{
-   AddTail((CJListElement*)pListObject);
-}
 
 
 void CJList::AddTail( CJListElement* pListElement)
@@ -132,11 +126,6 @@ void CJList::AddTail( CJListElement* pListElement)
 }
 
 
-void CJList::AddHead( CJListObject* pListObject)
-{
-   AddHead((CJListElement*)pListObject);
-}
-
 void CJList::AddHead( CJListElement* pListElement)
 {
 #ifdef CJLIST_CHECKING
@@ -186,11 +175,6 @@ void CJList::AddHead( CJListElement* pListElement)
 }
 
 
-BOOL CJList::InsertAfter( CJListObject* pLocationListObject, CJListObject* pNewListObject)
-{
-   return InsertAfter( (CJListElement*)pLocationListObject, (CJListElement*)pNewListObject);
-}
-
 BOOL CJList::InsertAfter( CJListElement* pLocationListElement, CJListElement* pNewListElement)
 {
 #ifdef CJLIST_CHECKING
@@ -238,11 +222,6 @@ BOOL CJList::InsertAfter( CJListElement* pLocationListElement, CJListElement* pN
    return TRUE;
 }
 
-
-BOOL CJList::InsertBefore( CJListObject* pLocationListObject, CJListObject* pNewListObject)
-{
-   return InsertBefore( (CJListElement*)pLocationListObject, (CJListElement*)pNewListObject);
-}
 
 BOOL CJList::InsertBefore( CJListElement* pLocationListElement, CJListElement* pNewListElement)
 {
@@ -292,11 +271,6 @@ BOOL CJList::InsertBefore( CJListElement* pLocationListElement, CJListElement* p
    return TRUE;
 }
 
-
-BOOL CJList::Remove( CJListObject* pListObject)
-{
-   return Remove((CJListElement*)pListObject);
-}
 
 BOOL CJList::Remove( CJListElement* pListElement)
 {
@@ -349,10 +323,6 @@ BOOL CJList::Remove( CJListElement* pListElement)
    return TRUE;
 }
 
-CJListObject* CJList::RemoveHeadObj()
-{
-   return (CJListObject*)RemoveHead();
-}
 
 CJListElement* CJList::RemoveHead()
 {
@@ -365,10 +335,6 @@ CJListElement* CJList::RemoveHead()
    return pReturnElement;
 }
 
-CJListObject* CJList::RemoveTailObj()
-{
-   return (CJListObject*)RemoveTail();
-}
 
 CJListElement* CJList::RemoveTail()
 {
@@ -381,10 +347,6 @@ CJListElement* CJList::RemoveTail()
    return pReturnElement;
 }
 
-CJListObject* CJList::GetNext( CJListObject* pListObject)
-{
-   return (CJListObject*)GetNext((CJListElement*)pListObject);
-}
 
 CJListElement* CJList::GetNext( CJListElement* pListElement)
 {
@@ -398,11 +360,6 @@ CJListElement* CJList::GetNext( CJListElement* pListElement)
    return pListElement->dpNextElement;
 }
 
-
-CJListObject* CJList::GetPrev( CJListObject* pListObject)
-{
-   return (CJListObject*)GetPrev((CJListElement*)pListObject);
-}
 
 CJListElement* CJList::GetPrev( CJListElement* pListElement)
 {

@@ -8,20 +8,39 @@
 
 #include "CJConfig.h"
 #include "CJTypes.h"
-#include "CJObject.h"
 
-// These macros use the default global trace mechanism
-#define CJTRACE(level,...)  if(level<=this->GetTraceLevel()) gpTrace->Trace(level,this->GetObjectStr(),__VA_ARGS__)
-#define CJPRINTF(level,...)  if(level<=this->GetTraceLevel()) gpTrace->TracePrintf(level,__VA_ARGS__)
-#define CJTRACE_REGISTER_CONSOLE(pConsole) gpTrace->RegisterConsole(pConsole);
-#define CJTRACE_REGISTER_TRACE_OBJ(pObj) gpTrace->RegisterObject(pObj);
-#define CJTRACE_UNREGISTER_TRACE_OBJ(pObj) gpTrace->UnregisterObject(pObj);
+enum eCJTraceId
+{
+   eTraceId_Default,
+   eTraceId_CJ_Cli,
+   
 
-#define TRACE_OFF   0x00
-#define TRACE_ERROR_LEVEL 0x01
-#define TRACE_HIGH_LEVEL  0x02
-#define TRACE_LOW_LEVEL   0x04
-#define TRACE_DBG_LEVEL   0x08
+   eTraceId_MainWindow,
+   eTraceId_NetworkManager,
+   eTraceId_BasicGraph,
+
+
+   eTraceId_LAST_ENTRY
+};
+
+#define TRACE_OFF   0x00U
+#define TRACE_ERROR_LEVEL 0x01U
+#define TRACE_HIGH_LEVEL  0x02U
+#define TRACE_LOW_LEVEL   0x04U
+#define TRACE_DBG_LEVEL   0x08U
+
+// Trace entry macro for submitting entry to global trace mechanism (entry format= TIMESTAMP  ID:<formatted trace string>)
+#define CJTRACE(level,...)   if(level<=CJTrace::GetTraceLevel(CJTRACE_MODULE_ID)) CJTrace::Trace(CJTRACE_MODULE_ID,__VA_ARGS__)
+#define CJPRINTF(level,...)  if(level<=CJTrace::GetTraceLevel(CJTRACE_MODULE_ID)) CJTrace::TracePrintf(__VA_ARGS__)
+#define CJTRACE_REGISTER_CONSOLE(pConsole) CJTrace::RegisterConsole(pConsole);
+#define CJTRACE_SET_TRACEID_STRING(id,str) CJTrace::SetTraceIdString(id,str);
+
+
+
+#ifndef CJTRACE_MODULE_ID
+#define CJTRACE_MODULE_ID eTraceId_Default  // Sets the default MODULE ID, this will be a blank string and ERROR_LEVEL tracing unless overridden in the local module
+#endif
+
 
 
 
@@ -29,45 +48,44 @@ class CJConsole;
 class CJTime;
 class CJSem;
 
-class CJTrace : public CJObject
+class CJTrace //: public CJObject
 {
 public:
    CJTrace( char const* pTraceNameStr, U32 traceBufferSizeBytes=CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES);
    ~CJTrace( );
 
-   BOOL  RegisterConsole( CJConsole* pConsole);
-   BOOL  UnregisterConsole(CJConsole* pConsole);
-   void  SetCliTraceState(BOOL newState) { dConsoleTraceOn = newState; }
+   static BOOL  RegisterConsole( CJConsole* pConsole);
+   static BOOL  UnregisterConsole(CJConsole* pConsole);
+   static void  SetCliTraceState(BOOL newState) { dConsoleTraceOn = newState; }
 
-   BOOL  RegisterObject( CJObject* pObject);
-   BOOL  UnregisterObject( CJObject* pObject);
-   void  DisplayRegisteredObjects(CJConsole* pConsole);
-   BOOL  SetTraceObjectLevel( U32 objectID, U32 newLevel);
+   static void  DisplayRegisteredObjects(CJConsole* pConsole);
+   static void  SetTraceIdString(eCJTraceId traceID, char const* prefixString);
 
-   void  Trace( U32 level, char const* objStr, char const* fmt,...);
-   void  TracePrintf( U32 level, char const* fmt,...);
-   void  TraceVPrintf( U32 level, char const* fmt, va_list argList);
-   void  TraceFlush();
+   static U32   GetTraceLevel(eCJTraceId traceID);
+   static BOOL  SetTraceLevel(eCJTraceId traceID, U32 level);
+   static void  SetTraceGlobalLevel(U32 level);
 
-   void  DisplayTraceBuffer(CJConsole* pConsole, U32 numBytesToDisplay);
+   static void  Trace(eCJTraceId traceID, char const* fmt, ...);
+   static void  TracePrintf(char const* fmt, ...);
+   static void  TraceVPrintf(char const* fmt, va_list argList);
+   static void  TraceFlush();
 
-   //static U32 dGlobalTraceLevel;
+   static void  DisplayTraceBuffer(CJConsole* pConsole, U32 numBytesToDisplay);
+
 
 private:
 
-   CJObject* dpObject[MAX_NUM_REGISTERED_TRACE_OBJECTS];
-   CJConsole* dpConsoleArray[MAX_NUM_REGISTERED_CONSOLE + 1];
-   U32    dNumRegisteredConsole;
-   char*  dTraceBuffer;
-   char*  dTraceBufferNext;
-   U32    dTraceBufferNumBytes;
-   BOOL   dConsoleTraceOn;
-
-   CJTime* dpTime;
-   CJSem*  dpLockSem;
+   static char       dTraceIdStringArray[eTraceId_LAST_ENTRY][CJTRACE_PREFIX_STRING_MAX_LENGTH + 1];
+   static U32        dTraceIdLevelArray[eTraceId_LAST_ENTRY];
+   static CJConsole* dpConsoleArray[MAX_NUM_REGISTERED_CONSOLE + 1];
+   static U32        dNumRegisteredConsole;
+   
+   static char*  dTraceBuffer;
+   static char*  dTraceBufferNext;
+   static U32    dTraceBufferNumBytes;
+   static BOOL   dConsoleTraceOn;
+   static CJSem* dpLockSem;
 
 };
-
-extern CJTrace* gpTrace;
 
 #endif // __CJTRACE_H_

@@ -142,7 +142,6 @@
     <ClCompile Include="..\src\CJLib\common\CJCli.cpp" />
     <ClCompile Include="..\src\CJLib\common\CJCliDefaultCommandSet.cpp" />
     <ClCompile Include="..\src\CJLib\common\CJList.cpp" />
-    <ClCompile Include="..\src\CJLib\common\CJObject.cpp" />
     <ClCompile Include="..\src\CJLib\common\CJTrace.cpp" />
     <ClCompile Include="..\src\CJLib\win\CJConsole.cpp" />
     <ClCompile Include="..\src\CJLib\win\CJSem.cpp" />
@@ -346,10 +345,6 @@
     <ClInclude Include="..\src\CJLib\include\CJConfig.h" />
     <ClInclude Include="..\src\CJLib\include\CJConsole.h" />
     <ClInclude Include="..\src\CJLib\include\CJList.h" />
-    <ClInclude Include="..\src\CJLib\include\CJMsgTask.h" />
-    <ClInclude Include="..\src\CJLib\include\CJObject.h" />
-    <ClInclude Include="..\src\CJLib\include\CJPersistConfig.h" />
-    <ClInclude Include="..\src\CJLib\include\CJPersistFile.h" />
     <ClInclude Include="..\src\CJLib\include\CJPool.h" />
     <ClInclude Include="..\src\CJLib\include\CJPoolBlocking.h" />
     <ClInclude Include="..\src\CJLib\include\CJQueue.h" />

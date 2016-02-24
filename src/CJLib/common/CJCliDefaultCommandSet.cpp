@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "CJConfig.h"
 #include "CJThreadMgr.h"
 #include "CJThread.h"
 #include "CJTrace.h"
@@ -11,66 +12,31 @@
 #include "CJConsole.h"
 #include "CJCliDefaultCommandSet.h"
 
-CliCommand CliEmptyCommandSet::EmptyCommandSet[] =
-{
-   {"","","",eCliAccess_Hidden} // This must be the last command
-};
 
-CliCommand CliDefaultCommandSet::DefaultCommandSet[] =
-{
-   {"history",
-    "Displays the list of commands recently executed on this CLI session",
-    "history [num_commands]\n"\
-    "   PARAMS:"\
-    "     num_command - Number of previous commands to display",
-    eCliAccess_Guest,
-    CliDefaultCommandSet::CliCommand_History},
+// Setup an empty command set for initialization
+CJCLI_COMMAND_DEFINTION_START(CliEmptyCommandSet)
+CJCLI_COMMAND_DEFINTION_END
 
-   {"help",
-    "Displays the list of available CLI commands",
-    "help",
-    eCliAccess_Guest,
-    CliDefaultCommandSet::CliCommand_Help},
+// Map CLI commands to associated functions for the default command set
+CJCLI_CREATE_FCNMAPPER(CliDefaultCommandSet)
+CJCLI_MAP_CMD_TO_FCN(CliDefaultCommandSet, history, CliCommand_History)
+CJCLI_MAP_CMD_TO_FCN(CliDefaultCommandSet, help, CliCommand_Help)
+CJCLI_MAP_CMD_TO_FCN(CliDefaultCommandSet, trace, CliCommand_Trace)
+CJCLI_MAP_CMD_TO_FCN(CliDefaultCommandSet, tracelevel, CliCommand_TraceLevel)
 
-
+// Define CLI commands for the default command set
+CJCLI_COMMAND_DEFINTION_START(CliDefaultCommandSet)
+CJCLI_COMMAND_DESCRIPTOR( history,     eCliAccess_Guest, "Displays the list of commands recently executed on this CLI session")
+CJCLI_COMMAND_DESCRIPTOR( help,        eCliAccess_Guest, "Displays the list of available CLI commands")
+CJCLI_COMMAND_DESCRIPTOR( trace,       eCliAccess_Guest, "Display the trace buffer, or redirect the trace buffer to CLI")
+CJCLI_COMMAND_DESCRIPTOR( tracelevel,  eCliAccess_Admin, "Set the tracelevel of a specific modules")
 #ifdef USE_DEFAULT_GLOBAL_THREAD_MANAGER
-   {"threads",
-    "Display all threads and the associated information.",
-    "threads"\
-      "   PARAMS:"\
-      "     none",
-    eCliAccess_Guest,
-    CliDefaultCommandSet::CliCommand_Threads},
+CJCLI_COMMAND_DESCRIPTOR( threads,     eCliAccess_Hidden, Display all threads and thread information)
 #endif
-
-   {"trace",
-    "Display the trace buffer.  This can also redirect the trace buffer to the CLI",
-    "trace [num_KB_of_trace_text] | [-on|-off]"\
-      "   PARAMS:"\
-      "     num_KB_of_trace_text = Number of KB of trace buffer to display (default=5KB)"\
-      "     -on/-off - Turns on/off the CLI trace buffer display in real time",
-    eCliAccess_Guest,
-    CliDefaultCommandSet::CliCommand_Trace},
-
-   {"tracelevel",
-    "Set the tracelevel globally or for a specific object",
-    "tracelevel [newlevel] | [-o objectID] | [-l] "\
-      "   PARAMS:"\
-      "     newlevel    - The new level assigned to the given object"\
-      "     -o objectID - Specifies a certain object to adjust the trace level"\
-      "     -l          - Displays all traceable objects and their current trace level",
-    eCliAccess_Admin,
-    CliDefaultCommandSet::CliCommand_TraceLevel},
+CJCLI_COMMAND_DEFINTION_END
 
 
-   {"","","",eCliAccess_Hidden} // This must be the last command
-};
 
-
-CliDefaultCommandSet::CliDefaultCommandSet( CJCli* pCli)
-{
-
-}
 
 CliReturnCode CliDefaultCommandSet::CliCommand_History( CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
 {
@@ -87,6 +53,13 @@ CliReturnCode CliDefaultCommandSet::CliCommand_Help( CJConsole* pConsole, CliCom
 CliReturnCode CliDefaultCommandSet::CliCommand_Threads( CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
 {
    CJThread* pTempThread;
+   else if ((pParams->numParams == 2) && (strcmp(pParams->str[1], "-help") == 0))
+   {
+      pConsole->Printf( "threads"
+                        "   PARAMS:"
+                        "     none");
+      return eCliReturn_Success;
+   }
 
    pConsole->Printf("System Threads:\n");
    pConsole->Printf("Name                              State     Affinity\n");
@@ -119,20 +92,27 @@ CliReturnCode CliDefaultCommandSet::CliCommand_Trace( CJConsole* pConsole, CliCo
 
    if(pParams->numParams == 1)
    {
-      gpTrace->DisplayTraceBuffer(pConsole, 5 * 1024);
+      CJTrace::DisplayTraceBuffer(pConsole, 5 * 1024);
    }
    else if(pParams->numParams == 2)
    {
+      if (strcmp(pParams->str[1], "-help") == 0)
+      {
+         pConsole->Printf( "trace [num_KB_of_trace_text] | [-on|-off]"
+                           "   PARAMS:"
+                           "     num_KB_of_trace_text = Number of KB of trace buffer to display (default=5KB)"
+                           "     -on/-off - Turns on/off the CLI trace buffer display in real time");
+      }
       if(strcmp(pParams->str[1], "-on") == 0)
       {
-         gpTrace->SetCliTraceState(TRUE);
+         CJTrace::SetCliTraceState(TRUE);
          pConsole->Printf("Setting CLI trace printing ON\n");
          return eCliReturn_Success;
       }
       else if(strcmp(pParams->str[1], "-off") == 0)
       {
          pConsole->Printf("Setting CLI trace printing OFF\n");
-         gpTrace->SetCliTraceState(FALSE);
+         CJTrace::SetCliTraceState(FALSE);
          return eCliReturn_Success;
       }
       else
@@ -141,15 +121,13 @@ CliReturnCode CliDefaultCommandSet::CliCommand_Trace( CJConsole* pConsole, CliCo
          if( kb_trace_buffer > (CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES / 1024))
          {
             pConsole->Printf("ERROR: Invalid trace view size in KB (size=%u)\n", kb_trace_buffer);
-            pConsole->Printf("%s\n", pCmd->usage);
             return eCliReturn_InvalidParam;
          }
-         gpTrace->DisplayTraceBuffer(pConsole, kb_trace_buffer * 1024);
+         CJTrace::DisplayTraceBuffer(pConsole, kb_trace_buffer * 1024);
       }
    }
    else
    {
-      pConsole->Printf("%s\n", pCmd->usage);
       return eCliReturn_InvalidParam;
    }
 
@@ -165,18 +143,22 @@ CliReturnCode CliDefaultCommandSet::CliCommand_TraceLevel( CJConsole* pConsole, 
    if(pParams->numParams == 1)
    {
       pConsole->Printf("TRACE LEVELS: OFF=%d, ERROR=%d, HIGH=%d, LOW=%d, DEBUG=%d\n", TRACE_OFF, TRACE_ERROR_LEVEL, TRACE_HIGH_LEVEL, TRACE_LOW_LEVEL, TRACE_DBG_LEVEL);
-      gpTrace->DisplayRegisteredObjects(pConsole);
+      CJTrace::DisplayRegisteredObjects(pConsole);
+   }
+   else if ((pParams->numParams == 2) && (strcmp(pParams->str[1], "-help") == 0))
+   {
+      pConsole->Printf( "tracelevel [newlevel] | [-o objectID] | [-l] "
+                        "   PARAMS:"
+                        "     newlevel    - The new level assigned to the given object"
+                        "     -o objectID - Specifies a certain object to adjust the trace level"
+                        "     -l          - Displays all traceable objects and their current trace level");
    }
    else if(pParams->numParams == 3)
    {
-      if(strcmp(pParams->str[1], "-global") == 0)
+      if(strcmp(pParams->str[1], "-global") == 0) // TODO: FIX THIS TO SET ALL TRACE LEVELS
       {
          level = atol(pParams->str[paramIndex]);
-         if( gpTrace->SetTraceObjectLevel( 0, level) == FALSE)
-         {
-            pConsole->Printf("ERROR: Failed to set new trace level\n");
-            return eCliReturn_Failed;
-         }
+         CJTrace::SetTraceGlobalLevel(level);
       }
       else
       {
@@ -216,7 +198,7 @@ CliReturnCode CliDefaultCommandSet::CliCommand_TraceLevel( CJConsole* pConsole, 
          return eCliReturn_InvalidParam;
       }
 
-      if( gpTrace->SetTraceObjectLevel( objectID, level) == FALSE)
+      if (CJTrace::SetTraceLevel((eCJTraceId)objectID, level) == FALSE)
       {
          pConsole->Printf("ERROR: Failed to find object ID\n");
          return eCliReturn_Failed;

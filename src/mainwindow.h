@@ -37,18 +37,20 @@ class ControlWidget;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    MainWindow();
+   MainWindow();
 
+
+public slots:
+   void cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc);
 
 private slots:
    void MouseMode_Select();
    void MouseMode_Drag();
 
    void ViewMode_UpdateWhileRunning();
-
-   void loadNetworkFile();
+   void menuLoadNetworkFile();
+   
    void loadDataFile();
    void saveDataFile();
 
@@ -60,9 +62,7 @@ private:
     void createRightSideTabs();
     void createMainFrame();
 
-    QTextEdit *textEdit;
-
-	 
+    QTextEdit *textEdit; 
 	
 	 QAction *aboutAct;
 	 QAction *aboutQtAct;
@@ -75,7 +75,6 @@ private:
     ConsoleDock*     dpConsoleDock;
     BasicGraph*      dpBasicGraph1;
     BasicGraph*      dpBasicGraph2;
-
     ControlWidget*   pControlWidget;
 
     // Menus
@@ -92,5 +91,33 @@ private:
 
 };
 
+#include "CJCli.h"
+class CliMainWindowCommandSet : public QObject
+{
+   Q_OBJECT
+public:
+   CliMainWindowCommandSet() {}
+
+   void Initialize(MainWindow* pMainWindow)
+   {
+      dpMainWindow = pMainWindow;
+      connect(this, &CliMainWindowCommandSet::LoadNetworkFileSignal, dpMainWindow, &MainWindow::cliLoadNetworkFile, Qt::BlockingQueuedConnection);
+   }
+   static CliCommand CommandDescriptorArray[];
+
+   // CLI Command Functions
+   CliReturnCode CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+
+//public slots:
+  // void cliLoadNetworkFileLocal(QString fileName, CliReturnCode* pCliRc);
+ 
+
+signals:
+   void LoadNetworkFileSignal(QString fileName, CliReturnCode* pCliRc);
+
+private:
+
+   MainWindow* dpMainWindow;
+};
 
 #endif

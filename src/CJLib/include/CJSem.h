@@ -10,15 +10,14 @@
 #endif
 
 #include "CJTypes.h"
-#include "CJObject.h"
 
 //#define TRACE_RWLOCK_COUNTS 1
 
-class CJSem : public CJObject
+class CJSem
 {
 public:
    CJSem();  // The count defaults to 0
-   CJSem(U32 starting_count, char const* pSemName = NULL);
+   CJSem(U32 starting_count);
    //~CJSem( );
 
    void Post();

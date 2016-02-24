@@ -5,10 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;cxx;c;def</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h</Extensions>
-    </Filter>
     <Filter Include="Form Files">
       <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
       <Extensions>ui</Extensions>
@@ -170,9 +166,6 @@
     <ClCompile Include="..\src\CJLib\common\CJList.cpp">
       <Filter>CJLib\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\CJLib\common\CJObject.cpp">
-      <Filter>CJLib\common</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\CJLib\common\CJTrace.cpp">
       <Filter>CJLib\common</Filter>
     </ClCompile>
@@ -310,18 +303,6 @@
       <Filter>CJLib\include</Filter>
     </ClInclude>
     <ClInclude Include="..\src\CJLib\include\CJList.h">
-      <Filter>CJLib\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\CJLib\include\CJMsgTask.h">
-      <Filter>CJLib\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\CJLib\include\CJObject.h">
-      <Filter>CJLib\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\CJLib\include\CJPersistConfig.h">
-      <Filter>CJLib\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\CJLib\include\CJPersistFile.h">
       <Filter>CJLib\include</Filter>
     </ClInclude>
     <ClInclude Include="..\src\CJLib\include\CJPool.h">

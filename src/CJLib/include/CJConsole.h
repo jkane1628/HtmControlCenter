@@ -9,7 +9,6 @@
 
 #include "CJTypes.h"
 #include "CJConfig.h"
-#include "CJObject.h"
 
 enum eConsoleType
 {
@@ -17,10 +16,10 @@ enum eConsoleType
     eConsoleType_Telnet
 };
 
-class CJConsole : public CJObject
+class CJConsole
 {
 public:
-   CJConsole(char const* pConsoleNameStr) : CJObject("LIB::CN::", pConsoleNameStr) {};
+   CJConsole(char const* pConsoleNameStr) {};
 
    
    void Printf(char const*msg, ...);

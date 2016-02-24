@@ -19,7 +19,8 @@ Boosting takes place during times 1-2000. Run until time ~2100 to allow temporal
 		<SizeX>12</SizeX>
 		<SizeY>12</SizeY>
 		<NumValues>1</NumValues>
-		<Pattern type="Function" trial_duration="1"></Pattern>
+		<Pattern type="Function" start="00000" end="10000" x_initial="000"></Pattern>
+    <Pattern type="Function" start="10001" end="20000" x_initial="100"></Pattern>
 	</InputSpace>
 	<Region id="Region1">
 		<SizeX>12</SizeX>

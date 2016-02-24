@@ -1,10 +1,11 @@
 
-
 #include <cstring>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
 #include <QtCore/QTextStream>
+#include <QtCore/QFile>
+#include <QtCore/QXmlStreamReader>
 
 
 #include "CJCli.h"
@@ -16,46 +17,32 @@
 #include "Cell.h"
 #include "NetworkManager.h"
 
+#undef CJTRACE_MODULE_ID
+#define CJTRACE_MODULE_ID eTraceId_NetworkManager
 
-NetworkManager* CliHtmNetworkCommandSet::dpNetworkManager = NULL;
-CliCommand CliHtmNetworkCommandSet::CommandSet[] =
-{
-   { "ln",
-     "Loads a HTM network",
-     "ln <filename>\n"\
-     "   PARAMS:"\
-     "     filename - full path of .xml network datafile, or blank to load last file",
-     eCliAccess_Guest,
-     CliHtmNetworkCommandSet::CliCommand_loadNetwork },
+// Map CLI commands to associated functions for the default command set
+CJCLI_CREATE_FCNMAPPER(CliHtmNetworkCommandSet)
+CJCLI_MAP_CMD_TO_FCN(CliHtmNetworkCommandSet, htm, CliCommand_htmSummary)
 
-
-   { "", "", "", eCliAccess_Hidden } // This must be the last command
-};
-
-CliReturnCode CliHtmNetworkCommandSet::CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
-{
-   pConsole->Printf("Loading HTM network...\n");
-
-   // if param==0 Load from saved filename path
-   // if param==1 Load from path
-   
-   return eCliReturn_Success;
-}
-
-
-
+// Define CLI commands for the default command set
+CJCLI_COMMAND_DEFINTION_START(CliHtmNetworkCommandSet)
+CJCLI_COMMAND_DESCRIPTOR(htm, eCliAccess_Guest, "Displays a summary of the HTM network")
+CJCLI_COMMAND_DEFINTION_END
 
 
 extern MemManager mem_manager;
 
 NetworkManager::NetworkManager(void)
 {
-   CJTRACE_REGISTER_TRACE_OBJ(this);
-   CJTRACE_REGISTER_CLI_COMMAND_OBJ(new CliHtmNetworkCommandSet(this));
+   CJTRACE_SET_TRACEID_STRING(eTraceId_NetworkManager, "HTM")
+   CJTRACE_REGISTER_CLI_COMMAND_OBJ(CliHtmNetworkCommandSet)
+   CJCLI_CMDSET_OBJECT(CliHtmNetworkCommandSet).Initialize(this);
 
 	filename = "";
 	time = 0;
 	networkLoaded = false;
+
+   lastNetworkFilename = "lastOpenNetwork.txt";
 
 	// Delete log file if it exists.
 	QFile::remove("log.txt");
@@ -100,7 +87,24 @@ void NetworkManager::ClearNetwork()
 	srand(4242);
 }
 
-bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QString &_error_msg)
+bool NetworkManager::LoadLastNetwork(QString &_error_msg)
+{
+   QString previousFilename;
+
+   QFile* file = new QFile(lastNetworkFilename);
+   if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
+   {
+      _error_msg = "No last network to open in " + lastNetworkFilename;
+      CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
+      return false;
+   }
+   previousFilename = file->read(256);
+   file->close();
+
+   return LoadNetwork(previousFilename, _error_msg);
+}
+
+bool NetworkManager::LoadNetwork(QString &_filename, QString &_error_msg)
 {
 	Region *newRegion;
 	InputSpace *newInputSpace;
@@ -108,13 +112,29 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 	bool result, proximalSynapseParamsFound = false, distalSynapseParamsFound = false;
 	SynapseParameters defaultProximalSynapseParams, defaultDistalSynapseParams;
 
+   // Load network
+   QFile* file = new QFile(_filename);
+
+   CJTRACE(TRACE_HIGH_LEVEL, "Loading Network from file: %s", _filename);
+
+   // If the file failed to open, display message.
+   if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
+   {
+      _error_msg = "Couldn't open " + _filename;
+      CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
+      return false;
+   }
+
+   // Load the XML stream from the file.
+   QXmlStreamReader xml(file);
+
 	// Clear the network.
 	ClearNetwork();
 	
-	while(!_xml.atEnd() && !_xml.hasError()) 
+   while (!xml.atEnd() && !xml.hasError())
 	{
 		// Read next element.
-		QXmlStreamReader::TokenType token = _xml.readNext();
+      QXmlStreamReader::TokenType token = xml.readNext();
 
 		// If token is just StartDocument, we'll go to next.
 		if (token == QXmlStreamReader::StartDocument) {
@@ -125,14 +145,15 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 		if (token == QXmlStreamReader::StartElement) 
 		{
 			// If this is a ProximalSynapseParams element, read in the proximal synapse parameter information.
-			if (_xml.name() == "ProximalSynapseParams") 
+         if (xml.name() == "ProximalSynapseParams")
 			{
 				// Attempt to parse and store the proximal synapse parameters.
-				result = ParseSynapseParams(_xml, defaultProximalSynapseParams, _error_msg);
+				result = ParseSynapseParams(xml, defaultProximalSynapseParams, _error_msg);
 
 				if (result == false) 
 				{
 					ClearNetwork();
+               CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 					return false;
 				}
 
@@ -140,14 +161,15 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 			}
 
 			// If this is a DistalSynapseParams element, read in the distal synapse parameter information.
-			if (_xml.name() == "DistalSynapseParams") 
+         if (xml.name() == "DistalSynapseParams")
 			{
 				// Attempt to parse and store the distal synapse parameters.
-				result = ParseSynapseParams(_xml, defaultDistalSynapseParams, _error_msg);
+				result = ParseSynapseParams(xml, defaultDistalSynapseParams, _error_msg);
 
 				if (result == false) 
 				{
 					ClearNetwork();
+               CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 					return false;
 				}
 
@@ -155,14 +177,15 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 			}
 
 			// If this is a Region element, read in the Region's information.
-			else if (_xml.name() == "Region") 
+         else if (xml.name() == "Region")
 			{
 				// Attempt to parse and create the new Region.
-				newRegion = ParseRegion(_xml, defaultProximalSynapseParams, defaultDistalSynapseParams, _error_msg);
+            newRegion = ParseRegion(xml, defaultProximalSynapseParams, defaultDistalSynapseParams, _error_msg);
 
 				if (newRegion == NULL) 
 				{
 					ClearNetwork();
+               CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 					return false;
 				}
 
@@ -174,14 +197,15 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 			}
 
 			// If this is a InputSpace element, read in the InputSpace's information.
-			else if (_xml.name() == "InputSpace") 
+         else if (xml.name() == "InputSpace")
 			{
 				// Attempt to parse and create the new InputSpace.
-				newInputSpace = ParseInputSpace(_xml, _error_msg);
+            newInputSpace = ParseInputSpace(xml, _error_msg);
 
 				if (newInputSpace == NULL) 
 				{
 					ClearNetwork();
+               CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 					return false;
 				}
 
@@ -193,14 +217,15 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 			}
 
 			// If this is a Classifier element, read in the Classifier's information.
-			else if (_xml.name() == "Classifier") 
+         else if (xml.name() == "Classifier")
 			{
 				// Attempt to parse and create the new Classifier.
-				newClassifier = ParseClassifier(_xml, _error_msg);
+				newClassifier = ParseClassifier(xml, _error_msg);
 
 				if (newClassifier == NULL) 
 				{
 					ClearNetwork();
+               CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 					return false;
 				}
 
@@ -214,10 +239,11 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 	}
 
 	// Error handling.
-	if(_xml.hasError()) 
+   if (xml.hasError())
 	{
-		_error_msg = _xml.errorString();
+      _error_msg = xml.errorString();
 		ClearNetwork();
+      CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 		return false;
 	}
 
@@ -226,6 +252,7 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 	{
 		_error_msg = "ProximalSynapseParams not found in file.";
 		ClearNetwork();
+      CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 		return false;
 	}
 
@@ -234,6 +261,7 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 	{
 		_error_msg = "DistalSynapseParams not found in file.";
 		ClearNetwork();
+      CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 		return false;
 	}
 
@@ -250,6 +278,7 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 			{
 				_error_msg = "Region " + (*region_iter)->id + "'s input " + *input_id_iter + " is not a known Region or InputSpace.";
 				ClearNetwork();
+            CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 				return false;
 			}
 
@@ -273,20 +302,32 @@ bool NetworkManager::LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QSt
 		if (((*classifier_iter)->inputspace == NULL) || ((*classifier_iter)->region == NULL))
 		{
 			_error_msg = "Classifier " + (*classifier_iter)->id + " must have both a valid region and inputspace.";
+         CJTRACE(TRACE_HIGH_LEVEL, "ERROR: Load network failed.  %s", _error_msg);
 			return false;
 		}
 	}
 
 	// Removes any device() or data from the XML reader and resets its internal state to the initial state.
-	_xml.clear();
+	xml.clear();
 
 	// Record filename.
 	filename = _filename;
+   QFile* lastfile = new QFile(lastNetworkFilename);
+   if (!lastfile->open(QIODevice::WriteOnly | QIODevice::Text))
+   {
+      CJTRACE(TRACE_HIGH_LEVEL, "WARN: Failed to open last network filename. (%s)", lastNetworkFilename);
+   }
+   if (lastfile->write(filename.toUtf8()) == 0)
+   {
+      CJTRACE(TRACE_HIGH_LEVEL, "WARN: Failed to write last network filename. (%s)", lastNetworkFilename);
+   }
+   lastfile->close();
 
 	// Record that the network has been loaded.
 	networkLoaded = true;
 
 	// Success.
+   CJTRACE(TRACE_HIGH_LEVEL, "Load network completed successfully.");
 	return true;
 }
 
@@ -1726,6 +1767,11 @@ void NetworkManager::Step()
 	for (std::vector<Region*>::const_iterator region_iter = regions.begin(), end = regions.end(); region_iter != end; ++region_iter) {
 		(*region_iter)->Step();
 	}
+
+   // Run the classifier on the output data for the last time step
+   for (std::vector<Classifier*>::const_iterator classifier_iter = classifiers.begin(), end = classifiers.end(); classifier_iter != end; ++classifier_iter) {
+      (*classifier_iter)->Classify();
+   }
 }
 
 void NetworkManager::WriteToLog(QString _text)
@@ -1736,4 +1782,12 @@ void NetworkManager::WriteToLog(QString _text)
 			QTextStream stream( &file );
 			stream << _text << endl;
 	}
+}
+
+
+
+CliReturnCode CliHtmNetworkCommandSet::CliCommand_htmSummary(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
+{
+
+return eCliReturn_Success;
 }

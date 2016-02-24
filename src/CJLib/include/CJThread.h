@@ -31,9 +31,7 @@ struct CJThreadConfig
 };
 
 
-
-
-class CJThread : public CJListObject
+class CJThread : public CJListElement
 {
 public:
    CJThread( char const* pThreadNameStr);

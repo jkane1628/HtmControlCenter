@@ -58,6 +58,8 @@ QConsoleWidget::QConsoleWidget(QWidget *parent) : QTextEdit(parent)
 
 QConsoleWidget::~QConsoleWidget()
 {
+   dpCli->InitiateCliShutdown();
+   mpCJSemInputBufferNotEmpty->Post();
    delete mpCJSemInputBufferNotEmpty;
    delete mpCJSemInputBufferLock;
    delete dpCli;

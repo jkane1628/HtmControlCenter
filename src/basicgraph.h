@@ -1,7 +1,6 @@
 #ifndef BASICGRAPH_H
 #define BASICGRAPH_H
 
-#include "CJObject.h"
 #include <QFrame>
 #include <QWidget>
 #include "ui_BasicGraph.h"
@@ -21,7 +20,7 @@ struct TimeSeriesData
 };
 
 
-class BasicGraph : public QFrame, CJObject
+class BasicGraph : public QFrame
 {
 	Q_OBJECT
 
@@ -45,6 +44,7 @@ private:
    Ui::BasicGraph ui;
 };
 
+/*
 #include "CJCli.h"
 class CliGraphCommandSet : public CliCommandSetBase
 {
@@ -58,6 +58,6 @@ private:
    static CliCommand CommandSet[];
    static BasicGraph* dpBasicGraph;
 };
-
+*/
 
 #endif // BASICGRAPH_H

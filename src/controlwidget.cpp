@@ -57,16 +57,17 @@ void ControlWidget::RegisterHtmView(View* pView1, View* pView2)
 
 void ControlWidget::InitForNewNetworkLoad()
 {
-
    // Initialize stop time.
    stopTimeVal = 0;
    stopTime->setText("0");
-
 
    // Update the network controls
    pauseButton->setEnabled(false);
    stepButton->setEnabled(true);
    runButton->setEnabled(true);
+
+   // Update the UI to reflect the network that has been loaded.
+   UpdateUIForNetwork();
 }
 
 

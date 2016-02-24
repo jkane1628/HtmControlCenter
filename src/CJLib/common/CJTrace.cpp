@@ -2,36 +2,45 @@
 //
 
 #include <stdio.h>
-#include <time.h>
 
-#include "CJConsole.h"
-#include "CJTrace.h"
-//#include "CJTime.h"
 #include "CJSem.h"
+#include "CJConsole.h"
+//#include "CJTime.h"
+#include "CJTrace.h"
 
-CJTrace gTrace("GLOBAL");
-CJTrace* gpTrace = &gTrace;
 
+char       CJTrace::dTraceIdStringArray[eTraceId_LAST_ENTRY][CJTRACE_PREFIX_STRING_MAX_LENGTH + 1];
+U32        CJTrace::dTraceIdLevelArray[eTraceId_LAST_ENTRY];
+CJConsole* CJTrace::dpConsoleArray[MAX_NUM_REGISTERED_CONSOLE + 1];
+U32        CJTrace::dNumRegisteredConsole;
 
-CJTrace::CJTrace( char const* pTraceNameStr, U32 traceBufferSizeBytes) : CJObject("LIB::TRACE::", pTraceNameStr)
+char*  CJTrace::dTraceBuffer;
+char*  CJTrace::dTraceBufferNext;
+U32    CJTrace::dTraceBufferNumBytes;
+BOOL   CJTrace::dConsoleTraceOn;
+CJSem* CJTrace::dpLockSem;
+
+CJTrace gTrace("GLB", CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES); //Created to call constructor
+
+CJTrace::CJTrace( char const* pTraceNameStr, U32 traceBufferSizeBytes)
 {
    dNumRegisteredConsole = 0;
    for( int i=0; i<MAX_NUM_REGISTERED_CONSOLE+1; i++)
    {
       dpConsoleArray[i] = NULL;
    }
-   for( int j=0; j<MAX_NUM_REGISTERED_TRACE_OBJECTS; j++)
+   for (int j = 0; j<eTraceId_LAST_ENTRY; j++)
    {
-      dpObject[j] = NULL;
+      dTraceIdStringArray[j][0] = 0;
+      dTraceIdLevelArray[j] = CJTRACE_DEFAULT_LEVEL;
    }
 
-   dTraceBuffer = new char[CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES + 256];
+   dTraceBuffer = new char[CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES + 256];  // TODO: DECLARE STATIC
    dTraceBufferNext = dTraceBuffer;
    dTraceBufferNumBytes = 0;
    dConsoleTraceOn = TRUE;
 
-   //dpTime = new CJTime();
-   dpLockSem = new CJSem(1, "TraceLock");
+   dpLockSem = new CJSem(1);   // TODO: DECLARE STATIC
 }
 
 CJTrace::~CJTrace( )
@@ -42,7 +51,7 @@ CJTrace::~CJTrace( )
 
 
 
-void CJTrace::Trace( U32 level, char const* objStr, char const* fmt,...)
+void CJTrace::Trace(eCJTraceId traceID, char const* fmt, ...)
 {
    va_list argList;
    char traceFmtStr[256];
@@ -56,42 +65,35 @@ void CJTrace::Trace( U32 level, char const* objStr, char const* fmt,...)
    U32 diff_microseconds =  (t.tv_nsec - gLastTimestamp.tv_nsec)/1000 + (t.tv_sec- gLastTimestamp.tv_sec)*1000000;   
    gLastTimestamp = t;
 #else
-   U32 current_microseconds = 0;
-   U32 diff_microseconds = 0;
-#endif
+   //U32 current_microseconds = 0;
+   //U32 diff_microseconds = 0;
+   LARGE_INTEGER current_raw_count;
+   QueryPerformanceCounter(&current_raw_count);
+   //BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
 
-   // Date and Time  // TODO: REPLACE WITH CJ TIME
-   //char time[20];
-   //time[0] = 0;
-   
-   /*  struct timeval tv;
-   time_t curtime;  
-   gettimeofday(&tv, NULL); 
-   curtime=tv.tv_sec;
-   strftime(time,20,"%m/%d %H:%M",localtime(&curtime));
-   */
+#endif
 
    // Format Final String
 #ifdef CJWINDOWS 
-   sprintf_s(traceFmtStr, 256, "(%s) %s\n", objStr, fmt);
+   sprintf_s(traceFmtStr, 256, "%-08u %s: %s\n", current_raw_count.LowPart, dTraceIdStringArray[traceID], fmt);
 #else
-   sprintf(traceFmtStr, "(%u/%-7u)(%s) %s\n", diff_microseconds, current_microseconds, objStr, fmt);
+   sprintf(traceFmtStr, "(%u/%-7u)(%s) %s\n", diff_microseconds, current_microseconds, dTraceIdStringArray[traceID], fmt);
 #endif
    va_start(argList, fmt);
-   TraceVPrintf(level, traceFmtStr, argList);
+   TraceVPrintf(traceFmtStr, argList);
    va_end(argList);
 }
 
-void CJTrace::TracePrintf( U32 level, char const* fmt,...)
+void CJTrace::TracePrintf( char const* fmt,...)
 {
    va_list argList;
    va_start(argList, fmt);
-   TraceVPrintf( level, fmt, argList);
+   TraceVPrintf( fmt, argList);
    va_end(argList);
 }
 
 
-void CJTrace::TraceVPrintf( U32 level, char const* fmt, va_list argList)
+void CJTrace::TraceVPrintf( char const* fmt, va_list argList)
 {
    char* pThisEntry = dTraceBufferNext;
    int string_length;
@@ -131,63 +133,36 @@ void CJTrace::TraceVPrintf( U32 level, char const* fmt, va_list argList)
    // Wrap the buffer
    if( dTraceBufferNext >= (dTraceBuffer + CJTRACE_DEFAULT_TRACE_BUFFER_SIZE_BYTES))
    {
-
       printf("WARNING: Wrapping trace buffer\n");
       dTraceBufferNext = dTraceBuffer;
    }
 
    dpLockSem->Unlock();
-
 }
 
 
-BOOL CJTrace::RegisterObject( CJObject* pObject)
+void CJTrace::SetTraceIdString(eCJTraceId traceID, char const* prefixString)
 {
-   // Find an empty slot
-   for( int j=0; j<MAX_NUM_REGISTERED_TRACE_OBJECTS; j++)
-   {
-      if( dpObject[j] == NULL)
-      {
-         dpObject[j] = pObject;
-         return TRUE;
-      }
-   }
-   return FALSE;
-}
-
-BOOL CJTrace::UnregisterObject( CJObject* pObject)
-{
-   // Find the object and remove it
-   for( int j=0; j<MAX_NUM_REGISTERED_TRACE_OBJECTS; j++)
-   {
-      if( dpObject[j] == pObject)
-      {
-         dpObject[j] = NULL;
-         return TRUE;
-      }
-   }
-   return FALSE;
+   strncpy(dTraceIdStringArray[traceID], prefixString, CJTRACE_PREFIX_STRING_MAX_LENGTH);
 }
 
 
-BOOL CJTrace::SetTraceObjectLevel( U32 traceID, U32 newLevel)
-{
-   for( int j=0; j<MAX_NUM_REGISTERED_TRACE_OBJECTS; j++)
+inline U32 CJTrace::GetTraceLevel(eCJTraceId traceID) { return dTraceIdLevelArray[traceID]; }
+BOOL  CJTrace::SetTraceLevel(eCJTraceId traceID, U32 level)
+{ 
+   if (traceID >= eTraceId_LAST_ENTRY)
+      return FALSE;
+   dTraceIdLevelArray[traceID] = level; 
+   return TRUE;
+}
+
+
+void  CJTrace::SetTraceGlobalLevel(U32 level) 
+{ 
+   for (int j = 0; j<eTraceId_LAST_ENTRY; j++)
    {
-      if( dpObject[j] != NULL)
-      {
-         if ((dpObject[j]->GetTraceId() == traceID) || (traceID == 0))
-         {
-            dpObject[j]->SetTraceLevel(newLevel);
-            if (traceID != 0)
-            {
-               // No need to continue
-               return TRUE;
-            }
-         }
-      }
+      dTraceIdLevelArray[j] = level;
    }
-   return (traceID == 0) ? TRUE : FALSE;
 }
 
 
@@ -195,24 +170,23 @@ void CJTrace::DisplayRegisteredObjects( CJConsole* pConsole)
 {
    char levelStr[24];
    pConsole->Printf("REGISTERED TRACE OBJECTS:\n");
-   pConsole->Printf("ID    NAME                                              LEVEL\n");
-   pConsole->Printf("----  ------------------------------------------------  -----------\n");
+   pConsole->Printf("ID    NAME                                    LEVEL\n");
+   pConsole->Printf("----  --------------------------------------  -----------\n");
 
-   for( int j=0; j<MAX_NUM_REGISTERED_TRACE_OBJECTS; j++)
+   for (U32 j = 0; j<eTraceId_LAST_ENTRY; j++)
    {
-      if( dpObject[j] != NULL)
+      if (dTraceIdStringArray[j][0] != 0)
       {
-         switch(dpObject[j]->GetTraceLevel())
+         switch (GetTraceLevel((eCJTraceId)j))
          {
-         case TRACE_OFF:   sprintf( levelStr, "OFF(%u)", dpObject[j]->GetTraceLevel()); break;
-         case TRACE_ERROR_LEVEL: sprintf(levelStr, "ERROR(%u)", dpObject[j]->GetTraceLevel()); break;
-         case TRACE_HIGH_LEVEL:  sprintf(levelStr, "HIGH(%u)", dpObject[j]->GetTraceLevel()); break;
-         case TRACE_LOW_LEVEL:   sprintf(levelStr, "LOW(%u)", dpObject[j]->GetTraceLevel()); break;
-         case TRACE_DBG_LEVEL:   sprintf(levelStr, "DEBUG(%u)", dpObject[j]->GetTraceLevel()); break;
-         default:          sprintf( levelStr, "UNKNOWN(%u)", dpObject[j]->GetTraceLevel()); break;
+         case TRACE_OFF:   sprintf( levelStr, "OFF"); break;
+         case TRACE_ERROR_LEVEL: sprintf(levelStr, "ERROR"); break;
+         case TRACE_HIGH_LEVEL:  sprintf(levelStr, "HIGH"); break;
+         case TRACE_LOW_LEVEL:   sprintf(levelStr, "LOW"); break;
+         case TRACE_DBG_LEVEL:   sprintf(levelStr, "DEBUG"); break;
+         default:                sprintf(levelStr, "UNKNOWN(%u)", GetTraceLevel((eCJTraceId)j)); break;
          }
-
-         pConsole->Printf("%-4u  %-48s  %-11s\n", dpObject[j]->GetTraceId(), dpObject[j]->GetObjectStr(), levelStr);
+         pConsole->Printf("%-4u  %-38s  %-11s\n", j, dTraceIdStringArray[j], levelStr);
       }
    }
    pConsole->Printf("\n");
@@ -229,6 +203,7 @@ BOOL CJTrace::RegisterConsole( CJConsole* pConsole)
    dNumRegisteredConsole++;
    return TRUE;
 }
+
 
 BOOL  CJTrace::UnregisterConsole(CJConsole* pConsole)
 {

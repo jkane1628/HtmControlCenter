@@ -1,22 +1,5 @@
 // CJThread.cpp : Windows Implementation file
 //
-/*#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <stdio.h>
-#include <pthread.h>
-#include <sched.h>
-*/
-
-
-
-
-
 
 
 #ifdef USE_DEFAULT_GLOBAL_THREAD_MANAGER
@@ -29,7 +12,7 @@
 U32 gAssertCounter;  // TODO: REMOVE!!
 
 
-CJThread::CJThread( char const* pThreadNameStr) : CJListObject("LIB::THREAD::", pThreadNameStr)
+CJThread::CJThread(char const* pThreadNameStr) : CJListElement()
 {
    dThreadState = eThreadState_Uninitialized;
    dpReturnParams = NULL;

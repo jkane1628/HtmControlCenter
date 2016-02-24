@@ -1,11 +1,10 @@
 #pragma once
-#include <QtCore/QFile>
-#include <QtCore/QXmlStreamReader>
-//#include <list>
+
+
 #include "Region.h"
 #include "InputSpace.h"
 #include "Classifier.h"
-#include "CJObject.h"
+
 
 const int INPUTSPACE_MAX_SIZE = 1000000;
 const int INPUTSPACE_MAX_NUM_VALUES = 1000;
@@ -13,7 +12,10 @@ const int INPUTSPACE_MAX_NUM_VALUES = 1000;
 const int STRING_BUFFER_LEN = 100;
 const int LINE_BUFFER_LEN = 10000;
 
-class NetworkManager : public CJObject
+class QXmlStreamReader;
+class QFile;
+
+class NetworkManager 
 {
 public:
 	NetworkManager(void);
@@ -21,7 +23,8 @@ public:
 
 	void ClearNetwork();
 
-	bool LoadNetwork(QString &_filename, QXmlStreamReader &_xml, QString &_error_msg);
+	bool LoadNetwork(QString &_filename, QString &_error_msg);
+   bool LoadLastNetwork(QString &_error_msg);
 	bool ParseSynapseParams(QXmlStreamReader &_xml, SynapseParameters &_synapseParams, QString &_error_msg);
 	Region *ParseRegion(QXmlStreamReader &_xml, SynapseParameters _proximalSynapseParams, SynapseParameters _distalSynapseParams, QString &_error_msg);
 	InputSpace *ParseInputSpace(QXmlStreamReader &_xml, QString &_error_msg);
@@ -57,22 +60,24 @@ public:
 	std::vector<Region*> regions;
 	std::vector<Classifier*> classifiers;
 
+   QString lastNetworkFilename;
 	QString filename;
 	int time;
 	bool networkLoaded;
 };
 
 #include "CJCli.h"
-class CliHtmNetworkCommandSet : public CliCommandSetBase
+class CliHtmNetworkCommandSet
 {
 public:
-   CliHtmNetworkCommandSet(NetworkManager* pNetworkManager) { dpCommandSet=CommandSet; dpNetworkManager = pNetworkManager; }
-
+   CliHtmNetworkCommandSet(){}
+   void Initialize(NetworkManager* pNetworkManager) { dpNetworkManager = pNetworkManager; }
+   static CliCommand CommandDescriptorArray[];
+   
    // CLI Command Functions
-   static CliReturnCode CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+   CliReturnCode CliCommand_htmSummary(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
 
 private:
-   static CliCommand CommandSet[];
-   static NetworkManager* dpNetworkManager;
+   NetworkManager* dpNetworkManager;
 };
 
