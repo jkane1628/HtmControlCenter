@@ -4,13 +4,14 @@
 
 class InputSpace;
 class Region;
+class SDR_Float;
 
 class Classifier
 	: public DataSpace
 {
 public:
 	Classifier(QString &_id, int _numitems, QString _regionID, QString _inputspaceID, QStringList &_labels);
-	~Classifier(void) {};
+   ~Classifier(void);
 
 	// Properties
 
@@ -35,7 +36,11 @@ public:
 	void SetInputSpace(InputSpace *_inputspace) {inputspace = _inputspace;}
 	void SetRegion(Region *_region) {region = _region;}
 
+   bool CreateProjectionSdr(int numSteps);
+
 private:
+
+   SDR_Float* dpProjectionSdr;
 
 
 };

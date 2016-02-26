@@ -1,7 +1,12 @@
-#include "InputSpace.h"
-#include "Utils.h"
+
 #include <string.h>
 #include <crtdbg.h>
+
+#include "CJTrace.h"
+
+#include "InputSpace.h"
+#include "Utils.h"
+#include "SDR.h"
 
 InputSpace::InputSpace(QString &_id, int _sizeX, int _sizeY, int _numValues, std::vector<PatternInfo*> &_patterns)
 	: DataSpace(_id), image(NULL), patterns(_patterns)
@@ -11,6 +16,15 @@ InputSpace::InputSpace(QString &_id, int _sizeX, int _sizeY, int _numValues, std
 	numValues = _numValues;
 
 	rowSize = sizeX * numValues;
+
+
+   // Setup SDR
+   int range = 12;
+   int active = 6;
+   float min_value = 0;
+   float max_value = (sizeX * sizeY) - active + 1;
+   dpSdr = new SDR(sizeX, sizeY, active, range, 0, (sizeX * sizeY) - active + 1);
+
 
 	// Create data array.
 	data = new int[_sizeX * _sizeY * _numValues];
@@ -101,7 +115,7 @@ void InputSpace::ApplyPatterns(int _time)
 }
 
 
-float InputSpace::GenerateSDR(int active_cells, int active_range, float min_value, float max_value, float value)
+/*float InputSpace::GenerateSDR(int active_cells, int active_range, float min_value, float max_value, float value)
 {
    int total_cells = sizeY * sizeX;
    int resolution_steps = total_cells - active_cells + 1;
@@ -133,7 +147,7 @@ float InputSpace::GenerateSDR(int active_cells, int active_range, float min_valu
       SetIsActive(temp_active_index / sizeY, temp_active_index % sizeY, 0, true);
    }
    return resolution_min;
-}
+}*/
 
 
 void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
@@ -161,24 +175,62 @@ void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
 	int* bitmap;
 	ImageInfo *imageInfo;
 
-   float fcn_time;
-   float fcn_sin;
-   float res;
-   int fcn_y;
+
+   int fcn_y_int;
+   float fcn_y_float;
    int fcn_x;
+   int overlapCount, notOverlapCount;
+   
 	
 	switch (_pattern->type)
 	{
    case PATTERN_FUNCTION:
-
+   {
       // Start by clearing all activity.
       DeactivateAll();
 
+      /*
       fcn_time = _time * (2 * 3.14159) / (sizeX * sizeY);
       fcn_sin = sin(fcn_time);
+      */
+      int maxValue = dpSdr->dMaxValue;
 
-      res = GenerateSDR(6, 12, -1, 1, fcn_sin);
+      fcn_x = _time;
+      fcn_y_int = _time % maxValue;
+      fcn_y_float = fcn_y_int;
 
+      dpSdr->GenerateSDR(data, fcn_y_float);
+      CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", fcn_y_float, dpSdr->GetSDRResolution(), dpSdr->GetRepresentableValueCount());
+      
+      /*
+      const int outputEntries = 1;
+      float strongestValueArray[outputEntries];
+      int strongestOverlapCountArray[outputEntries];
+      int strongestNotOverlapCountArray[outputEntries];
+
+      dpSdr->GetStrongestOverlapCounts(data, outputEntries, strongestValueArray, strongestOverlapCountArray, strongestNotOverlapCountArray);
+      for (int k = 0; k < outputEntries; k++)
+      {
+         CJTRACE(TRACE_HIGH_LEVEL, "BestOutput value=%.3lf, overlap=%d, notoverlap=%d", strongestValueArray[k], strongestOverlapCountArray[k], strongestNotOverlapCountArray[k]);
+      }
+
+      float sweep_value;
+      float step_value;
+      SDR_Int* pTestSdr = new SDR_Int(sizeX, sizeY, active, range, min_value, max_value);
+      step_value = 1; // .002
+      for (i = -10; i < 10; i++)
+      {
+         sweep_value = fcn_time - (step_value*i);
+         if ((sweep_value > max_value) || (sweep_value < min_value))
+            continue;
+         sdr.DeactivateAll(pTestSdr->dpData);
+         sdr.GenerateSDR(pTestSdr->dpData, sweep_value);
+         sdr.GetOverlapCounts(data, pTestSdr->dpData, &overlapCount, &notOverlapCount);
+         CJTRACE(TRACE_HIGH_LEVEL, "Value=%.3lf, Overlap= %d, Not= %d", sweep_value, overlapCount, notOverlapCount);
+      }
+      */
+
+   }
       break;
 
 	case PATTERN_STRIPE:

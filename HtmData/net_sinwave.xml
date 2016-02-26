@@ -44,4 +44,5 @@ Boosting takes place during times 1-2000. Run until time ~2100 to allow temporal
 			<Input id="Input1" radius="8"></Input>
 		</Inputs>
 	</Region>
+  <Classifier id="InputClassifier" inputspace="Input1" region="Region1" numitems="100"></Classifier>
 </NetConfig>

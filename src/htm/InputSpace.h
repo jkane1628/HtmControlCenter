@@ -58,6 +58,8 @@ public:
 	int trialCount, curTrialStartTime, nextTrialStartTime;
 };
 
+class SDR;
+
 class InputSpace
 	: public DataSpace
 {
@@ -94,5 +96,7 @@ public:
 
 	void ApplyPatterns(int _time);
 	void ApplyPattern(PatternInfo *_pattern, int _time);
+
+   SDR* dpSdr;
 };
 

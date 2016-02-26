@@ -161,6 +161,7 @@
     <ClCompile Include="..\src\htm\NetworkManager.cpp" />
     <ClCompile Include="..\src\htm\ProximalSynapse.cpp" />
     <ClCompile Include="..\src\htm\Region.cpp" />
+    <ClCompile Include="..\src\htm\SDR.cpp" />
     <ClCompile Include="..\src\htm\Segment.cpp" />
     <ClCompile Include="..\src\htm\SegmentUpdateInfo.cpp" />
     <ClCompile Include="..\src\htm\Synapse.cpp" />
@@ -370,6 +371,7 @@
     <ClInclude Include="..\src\htm\NetworkManager.h" />
     <ClInclude Include="..\src\htm\ProximalSynapse.h" />
     <ClInclude Include="..\src\htm\Region.h" />
+    <ClInclude Include="..\src\htm\SDR.h" />
     <ClInclude Include="..\src\htm\Segment.h" />
     <ClInclude Include="..\src\htm\SegmentUpdateInfo.h" />
     <ClInclude Include="..\src\htm\Synapse.h" />
