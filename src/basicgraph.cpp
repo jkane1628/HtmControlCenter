@@ -1,49 +1,19 @@
 
 #include "CJTrace.h"
-#include "CJCli.h"
-#include "CJConsole.h"
+#include "htm/NetworkManager.h"
+#include "htm/InputSpace.h"
+#include "htm/Classifier.h"
+
 #include "basicgraph.h"
 
-/*
-BasicGraph* CliGraphCommandSet::dpBasicGraph = NULL;
-CliCommand CliGraphCommandSet::CommandSet[] =
-{
-   { "lg",
-     "Loads a datafile to the graph window",
-     "setmotor motorId dir speed\n"\
-     "   PARAMS:"\
-     "     filename - filename of .csv datafile",
-     eCliAccess_Guest,
-     CliGraphCommandSet::CliCommand_loadGraph },
-
-
-   {"","","",eCliAccess_Hidden} // This must be the last command
-};
-
-
-CliReturnCode CliGraphCommandSet::CliCommand_loadGraph(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
-{
-   pConsole->Printf("Load Graph Command...\n");
-   
-   //if (pParams->numParams != 4)
-   //   return eCliReturn_InvalidParam;
-   
-   TimeSeriesData timeseriesdata;
-   timeseriesdata.filename = QString::fromUtf8((const char*)pParams->str[1]);
-   timeseriesdata.filename.remove(0, 8);
-   if (dpBasicGraph->LoadCSVDataFile(timeseriesdata.filename, &timeseriesdata) == FALSE)
-   {
-      return eCliReturn_Failed;
-   }
-   return eCliReturn_Success;   
-}
-*/
 
 BasicGraph::BasicGraph(QWidget *parent)
 : QFrame(parent)
 {
 	ui.setupUi(this);
    OnReplot();
+
+   dLastRecordedTime = 0;
 
    CJTRACE_SET_TRACEID_STRING(eTraceId_BasicGraph, "BG");
    //CJTRACE_REGISTER_CLI_COMMAND_OBJ(new CliGraphCommandSet(this));
@@ -216,4 +186,185 @@ BOOL BasicGraph::LoadCSVDataFile(QString filename, TimeSeriesData* pOutputData)
 }
 
 
+InputspacePredictionGraph::InputspacePredictionGraph(QWidget *pParent, NetworkManager* pNetworkManager)
+: BasicGraph(pParent),
+dpNetworkManager(pNetworkManager)
+{
+   
+}
 
+void InputspacePredictionGraph::InitializeGraph()
+{
+   QCustomPlot* pPlot = ui.basicGraph;
+
+   pPlot->yAxis->setRange(0, 175);
+
+
+   // Setup Invalid Prediction Shading
+   QPen blankPen;
+   //blankPen.setColor();
+   blankPen.setStyle(Qt::NoPen);
+
+   pPlot->addGraph();
+   pPlot->graph(0)->setPen(blankPen);
+   pPlot->graph(0)->setBrush(QBrush(QColor(255, 0, 0, 64)));
+   pPlot->graph(0)->setName("Error");
+
+
+   // Setup Input Graph Line
+   QPen blueDotPen;
+   blueDotPen.setColor(QColor(30, 40, 255, 150));
+   blueDotPen.setStyle(Qt::DotLine);
+   blueDotPen.setWidthF(4);
+
+   pPlot->addGraph();
+   pPlot->graph(1)->setPen(blueDotPen); // line color blue for first graph
+   pPlot->graph(1)->setName("Input");
+
+   // Setup Prediction Graph Line
+   QPen greenSolidPen;
+   greenSolidPen.setColor(Qt::green);
+   greenSolidPen.setStyle(Qt::SolidLine);
+   greenSolidPen.setWidthF(2);
+
+   pPlot->addGraph();
+   pPlot->graph(2)->setPen(greenSolidPen);
+   pPlot->graph(2)->setName("Prediction");
+
+   // Setup Error Graph Line
+   QPen greySolidPen;
+   greySolidPen.setColor(Qt::gray);
+   greySolidPen.setStyle(Qt::SolidLine);
+   greySolidPen.setWidthF(2);
+
+   pPlot->addGraph();
+   pPlot->graph(3)->setPen(greySolidPen);
+   pPlot->graph(3)->setName("Error");
+
+
+
+}
+
+
+void InputspacePredictionGraph::UpdateGraphData(int time)
+{
+   dpInputSpace = dpNetworkManager->inputSpaces[0];
+   dpClassifier = dpNetworkManager->classifiers[0];
+
+   QCustomPlot* pPlot = ui.basicGraph;
+
+   if (time != dLastRecordedTime+1)
+   {      
+      pPlot->graph(0)->clearData();
+      pPlot->graph(1)->clearData();
+   }
+   dLastRecordedTime = time;
+
+   // Invalid Prediction Data
+   float invalid;
+   invalid = (dpClassifier->dNumValuesWithOverlap == 0) ? 175 : 0;
+   pPlot->graph(0)->addData(time, invalid);
+   pPlot->graph(0)->removeDataBefore(time - 100);
+
+   // Input Data
+   pPlot->graph(1)->addData(time, dpInputSpace->dCurrentInputValue);
+   pPlot->graph(1)->removeDataBefore(time - 100);
+      
+   // Prediction Data
+   pPlot->graph(2)->addData(time+1, dpClassifier->dMaxOverlapValue);
+   pPlot->graph(2)->removeDataBefore(time - 100);
+   
+   // Error Data
+   float error;
+   if (dpClassifier->dPreviousMaxOverlapValue == -99999) error = 0;
+   else error = dpInputSpace->dCurrentInputValue - dpClassifier->dPreviousMaxOverlapValue;
+   pPlot->graph(3)->addData(time, error);
+   pPlot->graph(3)->removeDataBefore(time - 100);
+}
+
+void InputspacePredictionGraph::ReplotGraph()
+{
+   ui.basicGraph->xAxis->setRange(dLastRecordedTime - 100, dLastRecordedTime + 10);
+   OnReplot();
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//InputspaceOverlapGraph
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+InputspaceOverlapGraph::InputspaceOverlapGraph(QWidget *pParent, NetworkManager* pNetworkManager)
+: BasicGraph(pParent),
+dpNetworkManager(pNetworkManager)
+{
+   dpPlot = ui.basicGraph;
+   dpBarsOverlap = new QCPBars(dpPlot->xAxis, dpPlot->yAxis);   
+   dpBarsNotOverlap = new QCPBars(dpPlot->xAxis, dpPlot->yAxis);
+}
+
+void InputspaceOverlapGraph::InitializeGraph()
+{   
+   QPen pen;
+
+   dpPlot->addPlottable(dpBarsOverlap);
+   dpPlot->addPlottable(dpBarsNotOverlap);
+
+   dpBarsOverlap->setName("Overlap");
+   pen.setColor(QColor(1, 92, 191));
+   dpBarsOverlap->setPen(pen);
+   dpBarsOverlap->setBrush(QColor(1, 92, 191, 50));
+
+   dpBarsNotOverlap->setName("Not Overlap");
+   pen.setColor(QColor(255, 25, 0));
+   dpBarsNotOverlap->setPen(pen);
+   dpBarsNotOverlap->setBrush(QColor(255, 25, 0, 50));
+
+   dpBarsNotOverlap->moveBelow(dpBarsOverlap);
+}
+
+void InputspaceOverlapGraph::UpdateGraphData(int time)
+{
+   dpInputSpace = dpNetworkManager->inputSpaces[0];
+   dpClassifier = dpNetworkManager->classifiers[0];
+}
+
+void InputspaceOverlapGraph::ReplotGraph()
+{
+   int itemsToGraph = MIN(dpClassifier->dNumValuesWithOverlap, dpClassifier->dOverlapArraySize);
+
+   float overlapMax = 0;
+   float overlapMin = 10000000;
+   float notMax = 0;
+   float notMin = 10000000;
+
+   // Normalize the data
+   for (int i = 0; i < itemsToGraph; i++)
+   {
+      overlapMax = MAX(overlapMax, dpClassifier->dOverlapAmountArray[i]);
+      overlapMin = MIN(overlapMin, dpClassifier->dOverlapAmountArray[i]);
+      notMax = MAX(notMax, dpClassifier->dNotOverlapAmountArray[i]);
+      notMin = MIN(notMin, dpClassifier->dNotOverlapAmountArray[i]);
+   }
+
+   float overlapMult = 10 / (overlapMax - overlapMin);
+   float overlapOffset = 20;
+   float notMult = 10 / (notMax - notMin);
+   float notOffset = 5;  // Shift results down to start at 5 
+   float overlapAdj;
+   float notAdj;
+
+
+
+   dpBarsOverlap->clearData();
+   dpBarsNotOverlap->clearData();
+   for (int i = 0; i < itemsToGraph; i++)
+   {
+      overlapAdj = ((dpClassifier->dOverlapAmountArray[i] - overlapMin) * overlapMult) + overlapOffset;
+      notAdj = ((dpClassifier->dNotOverlapAmountArray[i] - notMin) * notMult) + notOffset;
+      dpBarsOverlap->addData(dpClassifier->dOverlapValueArray[i], overlapAdj - notAdj);
+      dpBarsNotOverlap->addData(dpClassifier->dOverlapValueArray[i], notAdj);
+   }
+   dpPlot->rescaleAxes();
+   OnReplot();
+}

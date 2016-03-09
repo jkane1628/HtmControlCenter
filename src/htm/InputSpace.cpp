@@ -19,12 +19,11 @@ InputSpace::InputSpace(QString &_id, int _sizeX, int _sizeY, int _numValues, std
 
 
    // Setup SDR
-   int range = 12;
-   int active = 6;
+   int range = 40;
+   int active = 20;
    float min_value = 0;
-   float max_value = (sizeX * sizeY) - active + 1;
-   dpSdr = new SDR(sizeX, sizeY, active, range, 0, (sizeX * sizeY) - active + 1);
-
+   float max_value = 0;
+   dpSdr = new SDR(sizeX, sizeY, active, range, min_value, max_value);
 
 	// Create data array.
 	data = new int[_sizeX * _sizeY * _numValues];
@@ -115,47 +114,15 @@ void InputSpace::ApplyPatterns(int _time)
 }
 
 
-/*float InputSpace::GenerateSDR(int active_cells, int active_range, float min_value, float max_value, float value)
-{
-   int total_cells = sizeY * sizeX;
-   int resolution_steps = total_cells - active_cells + 1;
-   float resolution_min = (max_value - min_value) / resolution_steps;
-   int adjusted_value = ((value - min_value) / resolution_min) - 1;  // minus one to account for max_value being passed as value
-   
-   int minor_bin_count = active_range / active_cells;
-  
-   int major_bin_index = adjusted_value / active_range;
-   int major_bin_remainder = adjusted_value % active_range;
-
-   int minor_bin_index = major_bin_remainder / minor_bin_count;
-   int temp_active_index;
-
-   for (int i = 0; i < active_cells; i++)
-   {
-      if (major_bin_remainder == (0+i))
-      {
-         temp_active_index = (major_bin_index*active_range) + (i*minor_bin_count) + 0;
-      }
-      else if (major_bin_remainder <= (active_cells+i))
-      {
-         temp_active_index = (major_bin_index*active_range) + (i*minor_bin_count) + 1;
-      }
-      else
-      {
-         temp_active_index = (major_bin_index*active_range) + active_range + (i*minor_bin_count) + 1;
-      }      
-      SetIsActive(temp_active_index / sizeY, temp_active_index % sizeY, 0, true);
-   }
-   return resolution_min;
-}*/
-
-
 void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
 {
 	// If there is no pattern to apply, do nothing.
 	if (_pattern->type == PATTERN_NONE) {
 		return;
 	}
+
+   if ((_time > _pattern->endTime) || (_time < _pattern->startTime))
+      return;
 
 	// Advance to next trial if necessary.
 	if (_time >= _pattern->nextTrialStartTime)
@@ -178,7 +145,8 @@ void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
 
    int fcn_y_int;
    float fcn_y_float;
-   int fcn_x;
+   float fcn_x_float;
+   //int fcn_x;
    int overlapCount, notOverlapCount;
    
 	
@@ -189,19 +157,30 @@ void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
       // Start by clearing all activity.
       DeactivateAll();
 
-      /*
-      fcn_time = _time * (2 * 3.14159) / (sizeX * sizeY);
-      fcn_sin = sin(fcn_time);
-      */
       int maxValue = dpSdr->dMaxValue;
-
+      
+      fcn_x_float = (_time % maxValue) * (2 * 3.14159) / (float)maxValue;
+      fcn_y_float = sin(fcn_x_float) * maxValue / 2 + maxValue / 2;
+      
+      
+      /*
       fcn_x = _time;
       fcn_y_int = _time % maxValue;
       fcn_y_float = fcn_y_int;
+      */
 
       dpSdr->GenerateSDR(data, fcn_y_float);
       CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", fcn_y_float, dpSdr->GetSDRResolution(), dpSdr->GetRepresentableValueCount());
       
+      dCurrentInputValue = fcn_y_float;
+      /*_pattern->dFcnValueHisfcn_y_floattory.push_back(fcn_y_float);
+      if (_pattern->dFcnValueHistory.count() >= _pattern->dFcnValueHistoryMaxSize)
+      {
+         _pattern->dFcnValueHistory.pop_front();
+         _pattern->dFcnValueHistoryStartTime++;
+      }*/
+
+
       /*
       const int outputEntries = 1;
       float strongestValueArray[outputEntries];

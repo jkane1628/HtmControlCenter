@@ -38,10 +38,19 @@ public:
 
    bool CreateProjectionSdr(int numSteps);
 
+   static const int dOverlapArraySize = 7;
+   int   dNumValuesWithOverlap;
+   float dOverlapValueArray[dOverlapArraySize];
+   float dOverlapAmountArray[dOverlapArraySize];
+   float dNotOverlapAmountArray[dOverlapArraySize];
+   float dMaxOverlapValue;
+   float dPreviousMaxOverlapValue;
+
 private:
 
    SDR_Float* dpProjectionSdr;
 
+  
 
 };
 

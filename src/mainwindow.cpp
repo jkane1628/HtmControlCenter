@@ -38,10 +38,12 @@
 // Map CLI commands to associated functions for the default command set
 CJCLI_CREATE_FCNMAPPER(CliMainWindowCommandSet)
 CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, ln, CliCommand_loadNetwork)
+CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, s,  CliCommand_stepNetwork)
 
 // Define CLI commands for the default command set
 CJCLI_COMMAND_DEFINTION_START(CliMainWindowCommandSet)
 CJCLI_COMMAND_DESCRIPTOR(ln, eCliAccess_Guest, "Loads a HTM given network file, or the last loaded network file")
+CJCLI_COMMAND_DESCRIPTOR(s, eCliAccess_Guest, "Moves the current HTM network forward the specified steps")
 CJCLI_COMMAND_DEFINTION_END
 
 
@@ -61,20 +63,18 @@ MainWindow::MainWindow()
    // Create the NetworkManager
    dpConsoleDock = new ConsoleDock(this);  // This creates the CLI Object...TODO: BREAK OUT CLI AND CONSOLE CREATION
    dpHtmNetworkManager = new NetworkManager();
-   pControlWidget = new ControlWidget(dpHtmNetworkManager); // Create the tabbed widget for the frames in the right-hand panel.
+   pControlWidget = new ControlWidget(this, dpHtmNetworkManager); // Create the tabbed widget for the frames in the right-hand panel.
    dpHtmView1 = new View(pControlWidget);
    dpHtmView2 = new View(pControlWidget);
-   dpBasicGraph1 = new BasicGraph(this);
-   dpBasicGraph2 = new BasicGraph(this);
+   dpBasicGraph1 = new InputspacePredictionGraph(this, dpHtmNetworkManager);
+   dpBasicGraph2 = new InputspaceOverlapGraph(this, dpHtmNetworkManager);
 
-   pControlWidget->RegisterHtmView(dpHtmView1, dpHtmView2);
+   dpBasicGraph1->InitializeGraph();
+   dpBasicGraph2->InitializeGraph();
    
    CJTRACE_SET_TRACEID_STRING(eTraceId_MainWindow, "MW")
    CJTRACE_REGISTER_CLI_COMMAND_OBJ(CliMainWindowCommandSet)
    CJCLI_CMDSET_OBJECT(CliMainWindowCommandSet).Initialize(this);
-   
-   //connect(&CJCLI_CMDSET_OBJECT(CliMainWindowCommandSet), CliMainWindowCommandSet::LoadNetworkFileSignal(QString, CliReturnCode*), this, cliLoadNetworkFile(QString, CliReturnCode*)/*, Qt::BlockingQueuedConnection*/);
-
 
    createActions();
    createMenus();
@@ -158,6 +158,61 @@ void MainWindow::createMenus()
    helpMenu->addAction(aboutQtAct);
 }
 
+void MainWindow::UpdateUIDataForNetworkStep(int time)
+{
+   dpBasicGraph1->UpdateGraphData(time);
+   dpBasicGraph2->UpdateGraphData(time);
+}
+
+void MainWindow::UpdateUIForNetworkExecution(int time)
+{
+   // Update the network UI
+   pControlWidget->UpdateNetworkInfo();
+
+   // Update the selected item info.
+   pControlWidget->UpdateSelectedInfo();
+
+   // Update the views for execution.
+   if (dpHtmView1 != NULL)
+      dpHtmView1->UpdateForExecution();
+   if (dpHtmView2 != NULL)
+      dpHtmView2->UpdateForExecution();
+
+   dpBasicGraph1->ReplotGraph();
+   dpBasicGraph2->ReplotGraph();
+
+}
+
+void MainWindow::UpdateUIForNetworkLoad()
+{
+   // Update the network UI control widget
+   pControlWidget->InitForNewNetworkLoad();
+   
+   if (dpHtmView1 != NULL)
+   {
+      dpHtmView1->UpdateForNetwork(dpHtmNetworkManager);
+      // Show the first DataSpace in view1.
+      if (dpHtmView1->showComboBox->count() > 0) {
+         dpHtmView1->showComboBox->setCurrentIndex(0);
+      }
+   }
+
+   if (dpHtmView2 != NULL)
+   {
+      dpHtmView2->UpdateForNetwork(dpHtmNetworkManager);
+      // Show the first DataSpace in view2.
+      if (dpHtmView2->showComboBox->count() > 0) {
+         dpHtmView2->showComboBox->setCurrentIndex(0);
+      }
+   }
+}
+
+void MainWindow::UpdateUIForInfoSelection(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex)
+{
+   if (dpHtmView1 != NULL) dpHtmView1->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
+   if (dpHtmView2 != NULL) dpHtmView2->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
+}
+
 
 void MainWindow::ViewMode_UpdateWhileRunning()
 {
@@ -173,7 +228,10 @@ void MainWindow::menuLoadNetworkFile()
       if (!dpHtmNetworkManager->LoadNetwork(fileName, error_msg))
          QMessageBox::critical(this, "Error loading network.", error_msg, QMessageBox::Ok);
       else
-         pControlWidget->InitForNewNetworkLoad();
+      {
+         // Update the UI to reflect the network that has been loaded.
+         UpdateUIForNetworkLoad();
+      }
    }
 }
 
@@ -192,10 +250,20 @@ void MainWindow::cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc)
       *pCliRc = eCliReturn_Failed;
       return;
    }
-   pControlWidget->InitForNewNetworkLoad();
+   
+   UpdateUIForNetworkLoad();
    *pCliRc = eCliReturn_Success;
    return;
 }
+
+void MainWindow::cliStepHtmNetwork(int numSteps, CliReturnCode* pCliRc)
+{
+   if (pControlWidget->RunToStopTime(numSteps, true) == false)
+      *pCliRc = eCliReturn_InvalidParam;
+   else
+      *pCliRc = eCliReturn_Success;
+   return;
+ }
 
 
 void MainWindow::loadDataFile()
@@ -225,7 +293,7 @@ void MainWindow::loadDataFile()
       }
 
       // Update the UI to reflect the network's data that has been loaded.
-      pControlWidget->UpdateUIForNetwork();
+      UpdateUIForNetworkLoad();
    }
 }
 
@@ -347,6 +415,25 @@ CliReturnCode CliMainWindowCommandSet::CliCommand_loadNetwork(CJConsole* pConsol
 
    // Send signal to main window so HTM & GUI operations can execute on proper thread
    LoadNetworkFileSignal(fileName, &rc);
+   return eCliReturn_Success;
+}
 
+CliReturnCode CliMainWindowCommandSet::CliCommand_stepNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
+{
+   CliReturnCode rc;
+   int numStepsToRun;
+   if (pParams->numParams == 1)
+   {
+      numStepsToRun = 1;
+   }
+   else if (pParams->numParams == 2)
+   {
+      numStepsToRun = atoi(pParams->str[1]);
+   }
+   else
+      return eCliReturn_InvalidParam;
+
+   // Send signal to main window so HTM & GUI operations can execute on proper thread
+   StepNetworkSignal(numStepsToRun, &rc);
    return eCliReturn_Success;
 }

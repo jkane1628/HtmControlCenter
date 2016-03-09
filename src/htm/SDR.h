@@ -17,8 +17,8 @@ public:
    bool  GetOverlapCounts(int* pDataSpace1, int* pDataSpace2, int* pOverlapCount = NULL, int* pNotOverlapCount = NULL);
    void  GetOverlapAmounts(float* pDataSpace1, int* pDataSpace2, float* pOverlapAmount = NULL, float* pNotOverlapAmount = NULL);
 
-   void  GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float* pStrongestValueArray = NULL, int* pStrongestOverlapCountArray = NULL, int* pStrongestNotOverlapCountArray = NULL);
-   void  GetStrongestOverlapAmounts(float* pDataSpace, int maxOutputEntries, float* pStrongestValueArray = NULL, float* pStrongestOverlapAmountArray = NULL, float* pStrongestNotOverlapAmountArray = NULL);
+   int   GetStrongestOverlapCounts(int* pDataSpace, float* pMaxOverlapValue, int maxOutputEntries, float* pStrongestValueArray = NULL, int* pStrongestOverlapCountArray = NULL, int* pStrongestNotOverlapCountArray = NULL);
+   int   GetStrongestOverlapAmounts(float* pDataSpace, float* pMaxOverlapValue, int maxOutputEntries, float* pStrongestValueArray = NULL, float* pStrongestOverlapAmountArray = NULL, float* pStrongestNotOverlapAmountArray = NULL);
    
    bool  GetIsActive(int* pData, int _x, int _y, int _index);
    void  SetIsActive(int* pData, int _x, int _y, int _index, bool _active);
@@ -48,7 +48,8 @@ public:
    float dMaxValue;
 
 private:
-   int dNumValues;
+   int CalcSDRResolutionSteps();
+   int dResolution_steps;
    
 	
 };

@@ -14,13 +14,12 @@
 #include "htm/Segment.h"
 #include "htm/Cell.h"
 #include "htm/NetworkManager.h"
-#include "htm/View.h"
+#include "MainWindow.h"
 #include "controlwidget.h"
 
-ControlWidget::ControlWidget(NetworkManager *pNetworkManager)
+ControlWidget::ControlWidget(MainWindow* pMainWindow, NetworkManager *pNetworkManager)
 {
-   view1 = NULL;
-   view2 = NULL;
+   dpMainWindow = pMainWindow;
    dpNetworkManager = pNetworkManager;
 
    running = false;
@@ -49,12 +48,6 @@ ControlWidget::~ControlWidget()
 
 }
 
-void ControlWidget::RegisterHtmView(View* pView1, View* pView2)
-{
-   view1 = pView1;
-   view2 = pView2;
-}
-
 void ControlWidget::InitForNewNetworkLoad()
 {
    // Initialize stop time.
@@ -66,8 +59,8 @@ void ControlWidget::InitForNewNetworkLoad()
    stepButton->setEnabled(true);
    runButton->setEnabled(true);
 
-   // Update the UI to reflect the network that has been loaded.
-   UpdateUIForNetwork();
+   UpdateNetworkInfo();
+   UpdateSelectedInfo();
 }
 
 
@@ -179,53 +172,6 @@ void ControlWidget::createHTMSelectedFrame()
    connect(deselectSegButton, SIGNAL(clicked()), this, SLOT(DeselectSegment()));
 }
 
-void ControlWidget::UpdateUIForNetworkExecution()
-{
-   // Update the network UI
-   UpdateNetworkInfo();
-
-   // Do not update the rest of the UI if currently running, and the UI isn't to be updated while running.
-   if (running && !updateWhileRunning) {
-      return;
-   }
-
-   // Update the selected item info.
-   UpdateSelectedInfo();
-
-   // Update the views for execution.
-   if (view1 != NULL)
-      view1->UpdateForExecution();
-   if (view2 != NULL)
-      view2->UpdateForExecution();
-}
-
-void ControlWidget::UpdateUIForNetwork()
-{
-   // Update the network UI
-   UpdateNetworkInfo();
-
-   if (view1 != NULL)
-   {
-      view1->UpdateForNetwork(dpNetworkManager);
-      // Show the first DataSpace in view1.
-      if (view1->showComboBox->count() > 0) {
-         view1->showComboBox->setCurrentIndex(0);
-      }
-   }
-
-   if (view2 != NULL)
-   {
-      view2->UpdateForNetwork(dpNetworkManager);
-      // Show the first DataSpace in view2.
-      if (view2->showComboBox->count() > 0) {
-         view2->showComboBox->setCurrentIndex(0);
-      }
-   }
-
-   // Update information frames.
-   UpdateSelectedInfo();
-}
-
 
 void ControlWidget::Pause()
 {
@@ -244,7 +190,7 @@ void ControlWidget::Pause()
 
    // If the UI hasn't been updated fully while running, update fully now.
    if (!updateWhileRunning) {
-      UpdateUIForNetworkExecution();
+      dpMainWindow->UpdateUIForNetworkExecution(dpNetworkManager->GetTime());
    }
 }
 
@@ -255,10 +201,13 @@ void ControlWidget::Step()
    }
 
    // Have the network manager take one step.
-   dpNetworkManager->Step();
+   int time = dpNetworkManager->Step();
+
+   // Update the data in the graphs
+   dpMainWindow->UpdateUIDataForNetworkStep(time);
 
    // Update UI
-   UpdateUIForNetworkExecution();
+   dpMainWindow->UpdateUIForNetworkExecution(time);
 }
 
 void ControlWidget::Run()
@@ -277,14 +226,36 @@ void ControlWidget::Run()
    timer.start(0, this);
 }
 
+bool ControlWidget::RunToStopTime(int newStopTimeVal, bool increment)
+{
+   QString stopString;
+   int oldTimeVal;
+
+   if (increment)
+   {
+      stopTimeVal = stopTime->text().toInt();
+      stopTimeVal += newStopTimeVal;
+   }
+   else
+   {
+      oldTimeVal = stopTime->text().toInt();
+      if (oldTimeVal > stopTimeVal)
+      {
+         return false;
+      }
+      stopTimeVal = newStopTimeVal;
+   }
+   stopTime->setText(stopString.sprintf("%d", stopTimeVal));
+   Run();
+}
+
 void ControlWidget::SelectSegment(const QModelIndex & current, const QModelIndex & previous)
 {
    selSegmentIndex = current.row();
 
    // Let the Views know what has been selected.
+   dpMainWindow->UpdateUIForInfoSelection(selRegion, selInput, selColX, selColY, selCellIndex, selSegmentIndex);
 
-   if (view1 != NULL) view1->SetSelected(selRegion, selInput, selColX, selColY, selCellIndex, selSegmentIndex);
-   if (view2 != NULL) view2->SetSelected(selRegion, selInput, selColX, selColY, selCellIndex, selSegmentIndex);
 }
 
 void ControlWidget::DeselectSegment()
@@ -466,17 +437,19 @@ void ControlWidget::SetSelected(Region *_region, InputSpace *_input, int _colX, 
    selCellIndex = _cellIndex;
    selSegmentIndex = _segmentIndex;
 
-   // Let the Views know what has been selected.
-   if (view1 != NULL) view1->SetSelected(_region, _input, _colX, _colY, _cellIndex, selSegmentIndex);
-   if (view2 != NULL) view2->SetSelected(_region, _input, _colX, _colY, _cellIndex, selSegmentIndex);
+   // Let the rest of UI know what has been selected.
+   dpMainWindow->UpdateUIForInfoSelection(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
 
    // Update info about selected item.
    UpdateSelectedInfo();
 }
 
 
+
+
 void ControlWidget::timerEvent(QTimerEvent *event)
 {
+   int currentTime;
    if (event->timerId() == timer.timerId())
    {
       QTime start_time;
@@ -493,10 +466,13 @@ void ControlWidget::timerEvent(QTimerEvent *event)
       do
       {
          // Execute one step for the network.
-         dpNetworkManager->Step();
+         currentTime = dpNetworkManager->Step();
+
+         // Update the data in the graphs
+         dpMainWindow->UpdateUIDataForNetworkStep(currentTime);
 
          // If the current time is the stop time, pause and exit loop.
-         if (dpNetworkManager->GetTime() == stopTimeVal)
+         if (currentTime == stopTimeVal)
          {
             Pause();
             break;
@@ -509,7 +485,7 @@ void ControlWidget::timerEvent(QTimerEvent *event)
       } while ((start_time.elapsed()) < 500);
 
       // Update the UI
-      UpdateUIForNetworkExecution();
+      dpMainWindow->UpdateUIForNetworkExecution(currentTime);
    }
    else
    {

@@ -13,9 +13,15 @@ dySize(ySize),
 dActiveCells(active_cells),
 dActiveRange(active_range),
 dMinValue(min_value),
-dMaxValue(max_value),
-dNumValues(1)
-{}
+dMaxValue(max_value)
+{
+   dResolution_steps = CalcSDRResolutionSteps();
+
+   if (dMinValue == 0 && dMaxValue == 0)
+   {
+      dMaxValue = dResolution_steps;
+   }
+}
 
 SDR::~SDR() {}
 
@@ -24,20 +30,17 @@ void  SDR::GenerateSDR(int* pData, float value)
    _ASSERT((value <= dMaxValue) && (value >= dMinValue));
 
    int total_cells = dySize * dxSize;
-   int resolution_steps = total_cells - dActiveCells + 1;
-   float resolution_min = (dMaxValue - dMinValue) / resolution_steps;
-   int adjusted_value = ((value - dMinValue) / resolution_min);// -1;  // minus one to account for max_value being passed as value
+   float resolution_min = (dMaxValue - dMinValue) / dResolution_steps;
+   int adjusted_value = ((value - dMinValue) / resolution_min);
 
    // Check to make sure this isn't the max value
    if (value == dMaxValue) adjusted_value--;
-
-   int minor_bin_size = dActiveRange / dActiveCells;
-   int minor_bin_count = dActiveCells;
-
+   
    int major_bin_index = adjusted_value / dActiveRange;
    int major_bin_remainder = adjusted_value % dActiveRange;
    int major_bin_remainder_remaining = major_bin_remainder;
-
+   int minor_bin_size = dActiveRange / dActiveCells;
+   int minor_bin_count = dActiveCells;
    int temp_active_index;
    int temp_active_index_offset;
    int temp_active_index_total;
@@ -51,12 +54,37 @@ void  SDR::GenerateSDR(int* pData, float value)
    }
 }
 
+int SDR::CalcSDRResolutionSteps()
+{
+   int total_cells = dySize * dxSize;
+   int starting_adjusted_value = total_cells - dActiveRange;
+
+   for (int adjusted_value = starting_adjusted_value; adjusted_value < total_cells; adjusted_value++)
+   {
+      int major_bin_index = adjusted_value / dActiveRange;
+      int major_bin_remainder = adjusted_value % dActiveRange;
+      int major_bin_remainder_remaining = major_bin_remainder;
+      int minor_bin_size = dActiveRange / dActiveCells;
+      int minor_bin_count = dActiveCells;
+      int temp_active_index;
+      int temp_active_index_offset;
+      int temp_active_index_total;
+      for (int minor_bin_index = 0; minor_bin_index < minor_bin_count; minor_bin_index++)
+      {
+         temp_active_index_offset = (major_bin_remainder + dActiveCells - 1 - minor_bin_index) / dActiveCells;
+         temp_active_index_total = (temp_active_index_offset / minor_bin_size) * dActiveRange + (temp_active_index_offset % minor_bin_size);
+         temp_active_index = (major_bin_index * dActiveRange) + (minor_bin_index * minor_bin_size) + temp_active_index_total;
+         if (temp_active_index >= total_cells)
+            return adjusted_value-1;
+      }
+   }
+   return -1; // ERROR
+}
+
 
 float SDR::GetSDRResolution()
 {
-   int total_cells = dySize * dxSize;
-   int resolution_steps = total_cells - dActiveCells + 1;
-   return (dMaxValue - dMinValue) / resolution_steps;
+   return (dMaxValue - dMinValue) / dResolution_steps;
 }
 
 int SDR::GetRepresentableValueCount()
@@ -119,8 +147,9 @@ void SDR::GetOverlapAmounts(float* pDataSpace1, int* pDataSpace2, float* pOverla
 }
 
 
-void SDR::GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float* pStrongestValueArray, int* pStrongestOverlapCountArray, int* pStrongestNotOverlapCountArray)
+int SDR::GetStrongestOverlapCounts(int* pDataSpace, float* pMaxOverlapValue, int maxOutputEntries, float* pStrongestValueArray, int* pStrongestOverlapCountArray, int* pStrongestNotOverlapCountArray)
 {
+   int numValuesWithAnyOverlap = 0;
    // Zero out output arrays
    int i;
    for (i = 0; i < maxOutputEntries; i++)
@@ -129,6 +158,7 @@ void SDR::GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float
       pStrongestOverlapCountArray[i] = 0;
       pStrongestNotOverlapCountArray[i] = dActiveCells;
    }
+   *pMaxOverlapValue = 0;
 
    // Get start and end positions to start scan from    //////////////// TODO: BIG OPTIMIZATION COULD BE MADE HERE.  NEED TO REDO HOW DATA IS LAYED OUT IN DATA BUFFER TO MAKE THIS WORK
 /*   int startX,startY,endX,endY;
@@ -145,6 +175,7 @@ void SDR::GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float
    int   overlapCountCandidate;
    int   notOverlapCountCandidate;
    int   lowestIndex = 0;
+   int   maxOverlapCount = 0;
 
 
    // Scan overlaps over range and record best values
@@ -164,7 +195,7 @@ void SDR::GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float
       }
       
 
-      // Find the lowest index
+      // Find the new lowest value index
       for (i = 0; i < maxOutputEntries; i++)
       {
          if ((pStrongestOverlapCountArray[i] < pStrongestOverlapCountArray[lowestIndex]) ||
@@ -173,13 +204,28 @@ void SDR::GetStrongestOverlapCounts(int* pDataSpace, int maxOutputEntries, float
             lowestIndex = i;
          }
       }
+
+      // Count any values that have overlap
+      if (overlapCountCandidate > 0)
+         numValuesWithAnyOverlap++;
+
+      // Record the best match
+      if (overlapCountCandidate > maxOverlapCount)
+      {
+         maxOverlapCount = overlapCountCandidate;
+         *pMaxOverlapValue = current_scan_value;
+      }
+
       current_scan_value += GetSDRResolution();
    }
+   return numValuesWithAnyOverlap;
 }
 
 
-void SDR::GetStrongestOverlapAmounts(float* pDataSpace, int maxOutputEntries, float* pStrongestValueArray, float* pStrongestOverlapAmountArray, float* pStrongestNotOverlapAmountArray)
+int SDR::GetStrongestOverlapAmounts(float* pDataSpace, float* pMaxOverlapValue, int maxOutputEntries, float* pStrongestValueArray, float* pStrongestOverlapAmountArray, float* pStrongestNotOverlapAmountArray)
 {
+   int numValuesWithAnyOverlap = 0;
+
    // Zero out output arrays
    int i;
    for (i = 0; i < maxOutputEntries; i++)
@@ -197,6 +243,7 @@ void SDR::GetStrongestOverlapAmounts(float* pDataSpace, int maxOutputEntries, fl
    float overlapCountCandidate;
    float notOverlapCountCandidate;
    int   lowestIndex = 0;
+   int   maxOverlapAmount = 0;
 
    // Scan overlaps over range and record best values
    while (current_scan_value <= end_scan_value)
@@ -223,8 +270,21 @@ void SDR::GetStrongestOverlapAmounts(float* pDataSpace, int maxOutputEntries, fl
             lowestIndex = i;
          }
       }
+
+      // Count any values that have overlap
+      if (overlapCountCandidate > 0)
+         numValuesWithAnyOverlap++;
+      
+      // Record the best match
+      if (overlapCountCandidate > maxOverlapAmount)
+      {
+         maxOverlapAmount = overlapCountCandidate;
+         *pMaxOverlapValue = current_scan_value;
+      }
+
       current_scan_value += GetSDRResolution();
    }
+   return numValuesWithAnyOverlap;
 }
 
 
@@ -243,8 +303,8 @@ bool SDR::GetIsActive(int* pData, int _x, int _y, int _index)
 {
    _ASSERT((_x >= 0) && (_x < dxSize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   return (pData[(_y * dxSize) + (_x * dNumValues) + _index] != 0);
+   _ASSERT((_index >= 0) && (_index < 1));
+   return (pData[(_y * dxSize) + (_x * 1) + _index] != 0);
 }
 
 
@@ -252,8 +312,8 @@ void  SDR::SetIsActive(int* pData, int _x, int _y, int _index, bool _active)
 {
    _ASSERT((_x >= 0) && (_x < dxSize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   pData[(_y * dxSize) + (_x * dNumValues) + _index] = (_active ? 1 : 0);
+   _ASSERT((_index >= 0) && (_index < 1));
+   pData[(_y * dxSize) + (_x * 1) + _index] = (_active ? 1 : 0);
 }
 
 
@@ -266,16 +326,16 @@ int SDR::GetValue(int* pData, int _x, int _y, int _index)
 {
    _ASSERT((_x >= 0) && (_x < dxSize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   return pData[(_y * dxSize) + (_x * dNumValues) + _index];
+   _ASSERT((_index >= 0) && (_index < 1));
+   return pData[(_y * dxSize) + (_x * 1) + _index];
 }
     
 float SDR::GetValue(float* pData, int _x, int _y, int _index)
 {
    _ASSERT((_x >= 0) && (_x < dxSize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   return pData[(_y * dxSize) + (_x * dNumValues) + _index];
+   _ASSERT((_index >= 0) && (_index < 1));
+   return pData[(_y * dxSize) + (_x * 1) + _index];
 }
 
 
@@ -283,8 +343,8 @@ void SDR::SetValue(float* pData, int _x, int _y, int _index, bool _value)
 {
    _ASSERT((_x >= 0) && (_x < dySize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   pData[(_y * dxSize) + (_x * dNumValues) + _index] = _value;
+   _ASSERT((_index >= 0) && (_index < 1));
+   pData[(_y * dxSize) + (_x * 1) + _index] = _value;
 }
 
 
@@ -292,8 +352,8 @@ void SDR::SetValue(float* pData, int _x, int _y, int _index, float _value)
 {
    _ASSERT((_x >= 0) && (_x < dySize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   pData[(_y * dxSize) + (_x * dNumValues) + _index] = _value;
+   _ASSERT((_index >= 0) && (_index < 1));
+   pData[(_y * dxSize) + (_x * 1) + _index] = _value;
 }
 
 
@@ -301,8 +361,8 @@ void SDR::IncrementValue(float* pData, int _x, int _y, int _index, float _value)
 {
    _ASSERT((_x >= 0) && (_x < dySize));
    _ASSERT((_y >= 0) && (_y < dySize));
-   _ASSERT((_index >= 0) && (_index < dNumValues));
-   pData[(_y * dxSize) + (_x * dNumValues) + _index] += _value;
+   _ASSERT((_index >= 0) && (_index < 1));
+   pData[(_y * dxSize) + (_x * 1) + _index] += _value;
 }
 
 

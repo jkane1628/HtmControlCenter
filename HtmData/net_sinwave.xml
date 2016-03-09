@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-Boosting takes place during times 1-2000. Run until time ~2100 to allow temporal pooler to complete learning.
+Boosting takes place during times 1-1000. Run until time ~1100 to allow temporal pooler to complete learning.
 -->
 <NetConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 	<ProximalSynapseParams>
@@ -23,13 +23,13 @@ Boosting takes place during times 1-2000. Run until time ~2100 to allow temporal
     <Pattern type="Function" start="10001" end="20000" x_initial="100"></Pattern>
 	</InputSpace>
 	<Region id="Region1">
-		<SizeX>12</SizeX>
-		<SizeY>12</SizeY>
+		<SizeX>24</SizeX>
+		<SizeY>24</SizeY>
 		<HardcodedSpatial>false</HardcodedSpatial>
 		<Boost rate="0.01" max="5"></Boost>
 		<SpatialLearningPeriod start="-1" end="-1"></SpatialLearningPeriod>
-		<TemporalLearningPeriod start="2000" end="-1"></TemporalLearningPeriod>
-		<BoostingPeriod start="-1" end="2000"></BoostingPeriod>
+		<TemporalLearningPeriod start="1000" end="-1"></TemporalLearningPeriod>
+		<BoostingPeriod start="-1" end="1000"></BoostingPeriod>
 		<MinOverlapToReuseSegment min="3" max="3"></MinOverlapToReuseSegment>
 		<PercentageInputPerCol>50</PercentageInputPerCol>
 		<PercentageMinOverlap>5</PercentageMinOverlap>

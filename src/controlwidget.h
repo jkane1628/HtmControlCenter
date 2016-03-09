@@ -13,7 +13,7 @@
 
 
 
-class View;
+class MainWindow;
 class NetworkManager;
 class Region;
 class InputSpace;
@@ -22,20 +22,17 @@ class ControlWidget : public QTabWidget
 {
    Q_OBJECT
 public:
-   ControlWidget(NetworkManager *pNetworkManager);
+   ControlWidget(MainWindow* pMainWindow, NetworkManager *pNetworkManager);
    ~ControlWidget();
-
-   void RegisterHtmView(View* pView1, View* pView2);
-
-   void UpdateUIForNetworkExecution();
-   void UpdateUIForNetwork();
 
    void InitForNewNetworkLoad();
    void SetUpdateWhileRunning(bool update) { updateWhileRunning = update; }
+   bool RunToStopTime(int newStopTimeVal, bool increment = false);
 
    //void keyPressEvent(QKeyEvent* e);
    void timerEvent(QTimerEvent *event);
 
+   void UpdateNetworkInfo();
    void UpdateSelectedInfo();
    void SetSelected(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex);
 
@@ -68,9 +65,8 @@ private:
    InputSpace *selInput;
    int selColX, selColY, selCellIndex, selSegmentIndex;
 
-   View* view1;
-   View* view2;
-   
+   MainWindow* dpMainWindow;
+    
    bool running;
    bool updateWhileRunning;
    bool networkFrameRequiresUpdate, selectedFrameRequiresUpdate;
@@ -78,7 +74,7 @@ private:
    QBasicTimer timer;
    
    
-   void UpdateNetworkInfo();
+   
    
 
 };

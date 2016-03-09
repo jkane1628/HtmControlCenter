@@ -13,8 +13,9 @@
 
 
 Classifier::Classifier(QString &_id, int _numItems, QString _regionID, QString _inputspaceID, QStringList &_labels)
-	: DataSpace(_id), labels(_labels), regionID(_regionID), inputspaceID(_inputspaceID), numItems(_numItems),
-   dpProjectionSdr(NULL)
+: DataSpace(_id), labels(_labels), regionID(_regionID), inputspaceID(_inputspaceID), numItems(_numItems),
+dpProjectionSdr(NULL),
+dPreviousMaxOverlapValue(-99999)
 {
    
 }
@@ -53,30 +54,24 @@ bool Classifier::GetIsActive(int _x, int _y, int _index)
 
 void Classifier::Classify() 
 {
-
-   // Create an SDR from the projection of the prediction cells throught the proximal synaspes
-   
-   CreateProjectionSdr(1);
+   // Create an SDR from the projection of the prediction cells projected through the proximal synaspes
+   CreateProjectionSdr(2);
 
    // Find the best overlap from the input values
-   const int arraySize = 1;
-   float strongestValueArray[arraySize];
-   float strongestOverlapAmountArray[arraySize];
-   float strongestNotOverlapAmountArray[arraySize];
+   // NOTE : In the case of no overlap (no predcition), dMaxOverlapValue will not be updated and the last value will still be there.
+   dPreviousMaxOverlapValue = dMaxOverlapValue;
+   dNumValuesWithOverlap = dpProjectionSdr->GetStrongestOverlapAmounts(dpProjectionSdr->dpData, &dMaxOverlapValue, dOverlapArraySize, dOverlapValueArray, dOverlapAmountArray, dNotOverlapAmountArray);
 
-   dpProjectionSdr->GetStrongestOverlapAmounts(dpProjectionSdr->dpData, arraySize, strongestValueArray, strongestOverlapAmountArray, strongestNotOverlapAmountArray);
-
-   for (int i = 0; i < arraySize; i++)
+   CJTRACE(TRACE_HIGH_LEVEL, "Best val=%.3lf", dMaxOverlapValue);
+   for (int i = 0; i < dOverlapArraySize; i++)
    {
-      CJTRACE(TRACE_HIGH_LEVEL, "Output val=%.3lf, overlap=%.3lf, not=%.3lf", strongestValueArray[i], strongestNotOverlapAmountArray[i]);
+      CJTRACE(TRACE_HIGH_LEVEL, "Match val=%.3lf, overlap=%.3lf, not=%.3lf", dOverlapValueArray[i], dOverlapAmountArray[i], dNotOverlapAmountArray[i]);
    }
 }
 
 
 bool Classifier::CreateProjectionSdr(int numSteps)
 {
-
-
    Region* curRegion = region;
    Column* curCol;
    Cell* curCell;
@@ -132,12 +127,9 @@ bool Classifier::CreateProjectionSdr(int numSteps)
                {
                   // Add the current synapse's permanence to the imageVal corresponding to the cell in the DataSpace being
                   // displayed by this view, that the Synapse connects from.
-                  //columnDisps[pSyn->InputPoint.X + (pSyn->InputPoint.Y * sceneWidth)]->imageVals[pSyn->InputPoint.Index] += pSyn->GetPermanence();
                   dpProjectionSdr->IncrementValue(dpProjectionSdr->dpData, pSyn->InputPoint.X, pSyn->InputPoint.Y, 0, pSyn->GetPermanence());
-
-
+                  
                   // Record the maximum imageVal among all cells, to use later for normalization.
-                  //maxImageVal = Max(maxImageVal, columnDisps[pSyn->InputPoint.X + (pSyn->InputPoint.Y * sceneWidth)]->imageVals[pSyn->InputPoint.Index]);
                   maxValue = MAX(maxValue, dpProjectionSdr->GetValue(dpProjectionSdr->dpData, pSyn->InputPoint.X, pSyn->InputPoint.Y, 0));
                }
             }
