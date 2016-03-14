@@ -52,7 +52,7 @@ public:
 	InputSpace *GetInputSpace(const QString _id);
 	Region *GetRegion(const QString _id);
 
-	void Step();
+   int Step();
 
 	void WriteToLog(QString _text);
 

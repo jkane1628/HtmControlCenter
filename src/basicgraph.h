@@ -19,6 +19,9 @@ struct TimeSeriesData
    QVector<double> pData;
 };
 
+class NetworkManager;
+class InputSpace;
+class Classifier;
 
 class BasicGraph : public QFrame
 {
@@ -27,6 +30,9 @@ class BasicGraph : public QFrame
 public:
    BasicGraph(QWidget *parent);
    ~BasicGraph();
+
+   virtual void InitializeGraph() {};
+   virtual void UpdateGraph(int time, bool replot) {};
 
    void Demo();
    BOOL LoadCSVDataFile(QString filename, TimeSeriesData* pOutputData);
@@ -39,25 +45,49 @@ public slots:
 
 protected:
    void resizeEvent(QResizeEvent *event);
+   Ui::BasicGraph ui;
+   int dLastRecordedTime;
 
 private:
-   Ui::BasicGraph ui;
 };
 
-/*
-#include "CJCli.h"
-class CliGraphCommandSet : public CliCommandSetBase
+class InputspacePredictionGraph : public BasicGraph
 {
 public:
-   CliGraphCommandSet(BasicGraph* pBasicGraph) { dpCommandSet = CommandSet; dpBasicGraph = pBasicGraph; }
 
-   // CLI Command Functions
-   static CliReturnCode CliCommand_loadGraph(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+   InputspacePredictionGraph(QWidget *parent, NetworkManager* pNetworkManager);
+   ~InputspacePredictionGraph() {}
+
+   void InitializeGraph();
+   void UpdateGraphData(int time);
+   void ReplotGraph();
 
 private:
-   static CliCommand CommandSet[];
-   static BasicGraph* dpBasicGraph;
+   NetworkManager* dpNetworkManager;
+   InputSpace* dpInputSpace;
+   Classifier* dpClassifier;
+
 };
-*/
+
+class InputspaceOverlapGraph : public BasicGraph
+{
+public:
+
+   InputspaceOverlapGraph(QWidget *parent, NetworkManager* pNetworkManager);
+   ~InputspaceOverlapGraph() {}
+
+   void InitializeGraph();
+   void UpdateGraphData(int time);
+   void ReplotGraph();
+
+private:
+   NetworkManager* dpNetworkManager;
+   InputSpace* dpInputSpace;
+   Classifier* dpClassifier;
+
+   QCustomPlot* dpPlot;
+   QCPBars *dpBarsOverlap;
+   QCPBars *dpBarsNotOverlap;
+};
 
 #endif // BASICGRAPH_H

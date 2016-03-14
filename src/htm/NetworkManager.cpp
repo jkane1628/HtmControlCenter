@@ -1753,7 +1753,7 @@ Region *NetworkManager::GetRegion(const QString _id)
 	return NULL;
 }
 
-void NetworkManager::Step()
+int NetworkManager::Step()
 {
 	// Increment time.
 	time++;
@@ -1772,6 +1772,8 @@ void NetworkManager::Step()
    for (std::vector<Classifier*>::const_iterator classifier_iter = classifiers.begin(), end = classifiers.end(); classifier_iter != end; ++classifier_iter) {
       (*classifier_iter)->Classify();
    }
+
+   return time;
 }
 
 void NetworkManager::WriteToLog(QString _text)

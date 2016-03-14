@@ -29,6 +29,8 @@ class QTextEdit;
 QT_END_NAMESPACE
 
 class BasicGraph;
+class InputspacePredictionGraph;
+class InputspaceOverlapGraph;
 class ConsoleDock;
 class View;
 class NetworkManager;
@@ -40,9 +42,14 @@ class MainWindow : public QMainWindow
 public:
    MainWindow();
 
+   void UpdateUIDataForNetworkStep(int time);
+   void UpdateUIForNetworkExecution(int time);
+   void UpdateUIForNetworkLoad();
+   void UpdateUIForInfoSelection(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex);
 
 public slots:
    void cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc);
+   void cliStepHtmNetwork(int numSteps, CliReturnCode* pCliRc);
 
 private slots:
    void MouseMode_Select();
@@ -73,8 +80,8 @@ private:
     View*            dpHtmView1;
     View*            dpHtmView2;
     ConsoleDock*     dpConsoleDock;
-    BasicGraph*      dpBasicGraph1;
-    BasicGraph*      dpBasicGraph2;
+    InputspacePredictionGraph*   dpBasicGraph1;
+    InputspaceOverlapGraph*      dpBasicGraph2;
     ControlWidget*   pControlWidget;
 
     // Menus
@@ -102,18 +109,19 @@ public:
    {
       dpMainWindow = pMainWindow;
       connect(this, &CliMainWindowCommandSet::LoadNetworkFileSignal, dpMainWindow, &MainWindow::cliLoadNetworkFile, Qt::BlockingQueuedConnection);
+      connect(this, &CliMainWindowCommandSet::StepNetworkSignal, dpMainWindow, &MainWindow::cliStepHtmNetwork, Qt::BlockingQueuedConnection);
    }
    static CliCommand CommandDescriptorArray[];
 
    // CLI Command Functions
    CliReturnCode CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+   CliReturnCode CliCommand_stepNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+   
 
-//public slots:
-  // void cliLoadNetworkFileLocal(QString fileName, CliReturnCode* pCliRc);
- 
 
 signals:
    void LoadNetworkFileSignal(QString fileName, CliReturnCode* pCliRc);
+   void StepNetworkSignal(int numSteps, CliReturnCode* pCliRc);
 
 private:
 

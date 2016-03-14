@@ -169,6 +169,9 @@
     <ClCompile Include="..\src\CJLib\common\CJTrace.cpp">
       <Filter>CJLib\common</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\htm\SDR.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Resources\images.qrc">
@@ -334,6 +337,9 @@
     </ClInclude>
     <ClInclude Include="..\src\CJLib\include\CJTypes.h">
       <Filter>CJLib\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\SDR.h">
+      <Filter>HTM Source</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
