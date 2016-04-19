@@ -54,7 +54,7 @@ CJThread::~CJThread( )
       CloseHandle(dWinThreadHandle);
 }
 
-static DWORD MainThreadFunction(void* pArg)
+static DWORD MainThreadFunction(LPVOID* pArg)
 {
    CJThread* pThreadObject = (CJThread*)pArg;
 
@@ -86,7 +86,7 @@ BOOL CJThread::InitThread(CJThreadConfig* pThreadConfig, U32(threadEntryFunction
    dWinThreadHandle = CreateThread(
       NULL,
       CJTHREAD_DEFAULT_STACK_SIZE,
-      MainThreadFunction,
+      (LPTHREAD_START_ROUTINE)MainThreadFunction,
       this,
       0,  // Could create suspended here
       &dWinThreadId

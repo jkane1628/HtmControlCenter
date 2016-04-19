@@ -247,6 +247,7 @@ bool ControlWidget::RunToStopTime(int newStopTimeVal, bool increment)
    }
    stopTime->setText(stopString.sprintf("%d", stopTimeVal));
    Run();
+   return true;
 }
 
 void ControlWidget::SelectSegment(const QModelIndex & current, const QModelIndex & previous)

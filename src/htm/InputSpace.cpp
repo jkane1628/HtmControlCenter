@@ -1,5 +1,6 @@
 
 #include <string.h>
+#include <stdlib.h>
 #include <crtdbg.h>
 
 #include "CJTrace.h"
@@ -8,22 +9,15 @@
 #include "Utils.h"
 #include "SDR.h"
 
-InputSpace::InputSpace(QString &_id, int _sizeX, int _sizeY, int _numValues, std::vector<PatternInfo*> &_patterns)
+InputSpace::InputSpace(QString &_id, int _sizeX, int _sizeY, int _numValues, std::vector<PatternInfo*> &_patterns, SDR* _sdrencoder)
 	: DataSpace(_id), image(NULL), patterns(_patterns)
 {
 	sizeX = _sizeX;
 	sizeY = _sizeY;
 	numValues = _numValues;
+   dpSdrEncoder = _sdrencoder;
 
 	rowSize = sizeX * numValues;
-
-
-   // Setup SDR
-   int range = 40;
-   int active = 20;
-   float min_value = 0;
-   float max_value = 0;
-   dpSdr = new SDR(sizeX, sizeY, active, range, min_value, max_value);
 
 	// Create data array.
 	data = new int[_sizeX * _sizeY * _numValues];
@@ -116,16 +110,11 @@ void InputSpace::ApplyPatterns(int _time)
 
 void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
 {
-	// If there is no pattern to apply, do nothing.
-	if (_pattern->type == PATTERN_NONE) {
-		return;
-	}
-
    if ((_time > _pattern->endTime) || (_time < _pattern->startTime))
       return;
 
 	// Advance to next trial if necessary.
-	if (_time >= _pattern->nextTrialStartTime)
+	/*if (_time >= _pattern->nextTrialStartTime)
 	{
 		_pattern->trialCount++;
 		_pattern->curTrialStartTime = _time;
@@ -135,14 +124,14 @@ void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
 		} else {
 			_pattern->nextTrialStartTime = _time + _pattern->minTrialDuration + (rand() % (_pattern->maxTrialDuration - _pattern->minTrialDuration + 1));
 		}
-	}
+	}*/
 
 	int x, y, x1, y1, i, numSteps, step;
 	float scale;
 	int* bitmap;
 	ImageInfo *imageInfo;
 
-
+   float temp;
    int fcn_y_int;
    float fcn_y_float;
    float fcn_x_float;
@@ -150,484 +139,500 @@ void InputSpace::ApplyPattern(PatternInfo *_pattern, int _time)
    int overlapCount, notOverlapCount;
    
 	
-	switch (_pattern->type)
-	{
-   case PATTERN_FUNCTION:
+   switch (_pattern->type)
    {
+   case PATTERN_NONE:
+      // If there is no pattern to apply, do nothing.
+      break;
+
+   case PATTERN_ENCODED_SEQUENCE:
+      DeactivateAll();
+      temp = _pattern->values[_time%_pattern->values.size()];
+      dpSdrEncoder->GenerateSDR(data, temp);
+      CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", temp, dpSdrEncoder->GetSDRResolution(), dpSdrEncoder->GetRepresentableValueCount());
+      dCurrentInputValue = temp;
+      break;
+
+   case PATTERN_ENCODED_FILE:
+      DeactivateAll();
+      temp = _pattern->values.at(_time%_pattern->values.size());
+      dpSdrEncoder->GenerateSDR(data, temp);
+      CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", temp, dpSdrEncoder->GetSDRResolution(), dpSdrEncoder->GetRepresentableValueCount());
+      dCurrentInputValue = temp;
+      break;
+
+   case PATTERN_ENCODED_RANDOM:
+   
+      // Start by clearing all activity.
+      DeactivateAll();
+      temp = abs(rand() * (dpSdrEncoder->dMaxValue - dpSdrEncoder->dMinValue) / 32768) + dpSdrEncoder->dMinValue;
+      dpSdrEncoder->GenerateSDR(data, temp);
+      CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", temp, dpSdrEncoder->GetSDRResolution(), dpSdrEncoder->GetRepresentableValueCount());
+      dCurrentInputValue = temp;
+
+
+      //                           fcn_x_float = (_time % maxValue) * (2 * 3.14159) / (float)maxValue;
+        //                         fcn_y_float = sin(fcn_x_float) * maxValue / 2 + maxValue / 2;
+
+
+                                 /*
+                                 fcn_x = _time;
+                                 fcn_y_int = _time % maxValue;
+                                 fcn_y_float = fcn_y_int;
+                                 */
+
+          //                       dpSdrEncoder->GenerateSDR(data, fcn_y_float);
+                                 
+
+                                 /*
+                                 const int outputEntries = 1;
+                                 float strongestValueArray[outputEntries];
+                                 int strongestOverlapCountArray[outputEntries];
+                                 int strongestNotOverlapCountArray[outputEntries];
+
+                                 dpSdr->GetStrongestOverlapCounts(data, outputEntries, strongestValueArray, strongestOverlapCountArray, strongestNotOverlapCountArray);
+                                 for (int k = 0; k < outputEntries; k++)
+                                 {
+                                 CJTRACE(TRACE_HIGH_LEVEL, "BestOutput value=%.3lf, overlap=%d, notoverlap=%d", strongestValueArray[k], strongestOverlapCountArray[k], strongestNotOverlapCountArray[k]);
+                                 }
+
+                                 float sweep_value;
+                                 float step_value;
+                                 SDR_Int* pTestSdr = new SDR_Int(sizeX, sizeY, active, range, min_value, max_value);
+                                 step_value = 1; // .002
+                                 for (i = -10; i < 10; i++)
+                                 {
+                                 sweep_value = fcn_time - (step_value*i);
+                                 if ((sweep_value > max_value) || (sweep_value < min_value))
+                                 continue;
+                                 sdr.DeactivateAll(pTestSdr->dpData);
+                                 sdr.GenerateSDR(pTestSdr->dpData, sweep_value);
+                                 sdr.GetOverlapCounts(data, pTestSdr->dpData, &overlapCount, &notOverlapCount);
+                                 CJTRACE(TRACE_HIGH_LEVEL, "Value=%.3lf, Overlap= %d, Not= %d", sweep_value, overlapCount, notOverlapCount);
+                                 }
+                                 */
+
+   
+   break;
+
+   case PATTERN_STRIPE:
+      // Apply stripe test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
       // Start by clearing all activity.
       DeactivateAll();
 
-      int maxValue = dpSdr->dMaxValue;
-      
-      fcn_x_float = (_time % maxValue) * (2 * 3.14159) / (float)maxValue;
-      fcn_y_float = sin(fcn_x_float) * maxValue / 2 + maxValue / 2;
-      
-      
-      /*
-      fcn_x = _time;
-      fcn_y_int = _time % maxValue;
-      fcn_y_float = fcn_y_int;
-      */
-
-      dpSdr->GenerateSDR(data, fcn_y_float);
-      CJTRACE(TRACE_HIGH_LEVEL, "Input  val=%.3lf,res=%.3lf,max=%d", fcn_y_float, dpSdr->GetSDRResolution(), dpSdr->GetRepresentableValueCount());
-      
-      dCurrentInputValue = fcn_y_float;
-      /*_pattern->dFcnValueHisfcn_y_floattory.push_back(fcn_y_float);
-      if (_pattern->dFcnValueHistory.count() >= _pattern->dFcnValueHistoryMaxSize)
+      numSteps = (sizeX + sizeY - 1);
+      //step = (_pattern->trialCount - 1) % numSteps;
+      step = 0; // JJK - Not sure on this change...
+      for (x = 0; x < sizeX; x++)
       {
-         _pattern->dFcnValueHistory.pop_front();
-         _pattern->dFcnValueHistoryStartTime++;
-      }*/
+         y = step - x;
 
+         if (y < 0) break;
+         if (y >= sizeY) continue;
 
-      /*
-      const int outputEntries = 1;
-      float strongestValueArray[outputEntries];
-      int strongestOverlapCountArray[outputEntries];
-      int strongestNotOverlapCountArray[outputEntries];
-
-      dpSdr->GetStrongestOverlapCounts(data, outputEntries, strongestValueArray, strongestOverlapCountArray, strongestNotOverlapCountArray);
-      for (int k = 0; k < outputEntries; k++)
-      {
-         CJTRACE(TRACE_HIGH_LEVEL, "BestOutput value=%.3lf, overlap=%d, notoverlap=%d", strongestValueArray[k], strongestOverlapCountArray[k], strongestNotOverlapCountArray[k]);
+         for (i = 0; i < numValues; i++) {
+            SetIsActive(x, y, i, true);
+         }
       }
-
-      float sweep_value;
-      float step_value;
-      SDR_Int* pTestSdr = new SDR_Int(sizeX, sizeY, active, range, min_value, max_value);
-      step_value = 1; // .002
-      for (i = -10; i < 10; i++)
-      {
-         sweep_value = fcn_time - (step_value*i);
-         if ((sweep_value > max_value) || (sweep_value < min_value))
-            continue;
-         sdr.DeactivateAll(pTestSdr->dpData);
-         sdr.GenerateSDR(pTestSdr->dpData, sweep_value);
-         sdr.GetOverlapCounts(data, pTestSdr->dpData, &overlapCount, &notOverlapCount);
-         CJTRACE(TRACE_HIGH_LEVEL, "Value=%.3lf, Overlap= %d, Not= %d", sweep_value, overlapCount, notOverlapCount);
-      }
-      */
-
-   }
       break;
 
-	case PATTERN_STRIPE:
-		// Apply stripe test pattern.
-
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		numSteps = (sizeX + sizeY - 1);
-		step = (_pattern->trialCount - 1) % numSteps;
-
-		for (x = 0; x < sizeX; x++)
-		{
-			y = step - x;
-
-			if (y < 0) break;
-			if (y >= sizeY) continue;
-
-			for (i = 0; i < numValues; i++) {
-				SetIsActive(x, y, i, true);
-			}
-		}
-		break;
-
-	case PATTERN_BOUNCING_STRIPE:
-		// Apply stripe test pattern.
-
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		numSteps = (sizeX + sizeY - 2);
-		step = (_pattern->trialCount - 1) % (numSteps * 2);
-
-		// Reverse direction of stripe if appropriate.
-		if (step >= numSteps) {
-			step = numSteps - (step - numSteps);
-		}
-
-		for (x = 0; x < sizeX; x++)
-		{
-			y = step - x;
-
-			if (y < 0) break;
-			if (y >= sizeY) continue;
-
-			for (i = 0; i < numValues; i++) {
-				SetIsActive(x, y, i, true);
-			}
-		}
-		break;
-	
-	case PATTERN_BAR:
-		// Apply bar test pattern.
-
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		numSteps = sizeX;
-		step = (_pattern->trialCount - 1) % numSteps;
-
-		for (y = 0; y < sizeY; y++)
-		{
-			for (i = 0; i < numValues; i++) {
-				SetIsActive(step, y, i, true);
-			}
-		}
-		break;
-
-	case PATTERN_BOUNCING_BAR:
-		// Apply bouncing bar test pattern.
-	
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		numSteps = sizeX - 1;
-		step = (_pattern->trialCount - 1) % (numSteps * 2);
-
-		// Reverse direction of bar if appropriate.
-		if (step >= numSteps) {
-			step = numSteps - (step - numSteps);
-		}
-
-		for (y = 0; y < sizeY; y++)
-		{
-			for (i = 0; i < numValues; i++) {
-				SetIsActive(step, y, i, true);
-			}
-		}
-		break;
-
-	case PATTERN_TEXT:
-		// Apply text test pattern.
-
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		numSteps = _pattern->string.length();
-		step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
-		scale = 0.8 * ((float)sizeY / 8.0f);
-
-		// Initialize image and painter if not yet done.
-		if (image == NULL) 
-		{
-			image = new QImage(sizeX, sizeY, QImage::Format_Mono);
-			painter = new QPainter(image);
-			painter->setPen(QColor(255,255,255));
-			painter->setFont(QFont("Times", 10, QFont::Bold));
-			painter->scale(scale, scale);
-		}
-
-		// Draw the text to the image.
-		image->fill(0);
-		painter->drawText(QRect(0, 0, (float)sizeX / scale, (float)sizeY / scale), Qt::AlignCenter, _pattern->string.mid(step, 1)); 
-
-		for (y = 0; y < sizeY; y++)
-		{
-			for (x = 0; x < sizeX; x++)
-			{
-				if (QColor(image->pixel(x,y)).lightness() >= 128) 
-				{
-					for (i = 0; i < numValues; i++) {
-						SetIsActive(x, y, i, true);
-					}
-				}				
-			}
-		}
-		break;
-
-	case PATTERN_BITMAP:
-		// Apply bitmap test pattern.
-
-		// If this isn't the start of a new trial, no need to update activity.
-		if (_time != _pattern->curTrialStartTime) {
-			break;
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		// If there are no bitmaps given for this TestPattern, do nothing.
-		if (_pattern->bitmaps.size() == 0) {
-			break;
-		}
-
-		numSteps = (int)(_pattern->bitmaps.size());
-		step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
-		
-		// Get a pointer to the current bitmap array.
-		bitmap = _pattern->bitmaps[step];
-
-		for (y = 0; y < sizeY; y++)
-		{
-			for (x = 0; x < sizeX; x++)
-			{
-				if (bitmap[y * sizeX + x] != 0) 
-				{
-					for (i = 0; i < numValues; i++) {
-						SetIsActive(x, y, i, true);
-					}
-				}				
-			}
-		}
-		break;
-	case PATTERN_IMAGE:
-		// Apply image test pattern.
-
-		// If there are no images given for this Pattern, do nothing.
-		if (_pattern->images.size() == 0) {
-			break;
-		}
-
-		numSteps = (int)(_pattern->images.size());
-		step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
-		
-		// Get a pointer to the current ImageInfo.
-		imageInfo = _pattern->images[step];
-
-		// If this is the start of a new trial...
-		if (_time == _pattern->curTrialStartTime) 
-		{
-			if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS)
-			{
-				// Determine start and end coordinates.
-				if ((rand() % 2) == 0)
-				{
-					// Horizontal movement.
-
-					if ((rand() % 2) == 0)  
-					{
-						// Left to right
-						_pattern->startX = 0;
-						_pattern->endX = sizeX - imageInfo->contentWidth;
-					} 
-					else 
-					{
-						// Right to left
-						_pattern->startX = sizeX - imageInfo->contentWidth;
-						_pattern->endX = 0;
-					}
-
-					// Choose start and end Y positions.
-					_pattern->startY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
-					_pattern->endY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
-				}
-				else
-				{
-					// Vertical movement.
-
-					if ((rand() % 2) == 0)  
-					{
-						// Top to bottom
-						_pattern->startY = 0;
-						_pattern->endY = sizeY - imageInfo->contentHeight;
-					} 
-					else 
-					{
-						// Bottom to top
-						_pattern->startY = sizeY - imageInfo->contentHeight;
-						_pattern->endY = 0;
-					}
-
-					// Choose start and end X positions.
-					_pattern->startX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
-					_pattern->endX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
-				}
-			}
-			else if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS2)
-			{
-				// Determine start and end coordinates.
-				if ((rand() % 2) == 0)
-				{
-					// Horizontal movement.
-
-					if ((rand() % 2) == 0)  
-					{
-						// Left to right
-						_pattern->startX = 0;
-						_pattern->endX = sizeX - imageInfo->contentWidth;
-					} 
-					else 
-					{
-						// Right to left
-						_pattern->startX = sizeX - imageInfo->contentWidth;
-						_pattern->endX = 0;
-					}
-
-					// Choose start and end Y position.
-					_pattern->startY = _pattern->endY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
-				}
-				else
-				{
-					// Vertical movement.
-
-					if ((rand() % 2) == 0)  
-					{
-						// Top to bottom
-						_pattern->startY = 0;
-						_pattern->endY = sizeY - imageInfo->contentHeight;
-					} 
-					else 
-					{
-						// Bottom to top
-						_pattern->startY = sizeY - imageInfo->contentHeight;
-						_pattern->endY = 0;
-					}
-
-					// Choose start and end X position.
-					_pattern->startX = _pattern->endX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
-				}
-			}
-			else
-			{
-				// Image doesn't move.
-				_pattern->startX = _pattern->startY = _pattern->endX = _pattern->endY = 0;
-			}
-		}
-
-		// Start by clearing all activity.
-		DeactivateAll();
-
-		// Clear the image processing buffer.
-		memset(buffer, 0, sizeX * sizeY * sizeof(int));
-
-		// Determine current image position.
-		int posX, posY;
-		if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS)
-		{
-			posX = (int)(((float)(_pattern->endX - _pattern->startX)) / ((float)(_pattern->nextTrialStartTime - _pattern->curTrialStartTime - 1)) * ((float)(_time - _pattern->curTrialStartTime)) + _pattern->startX + 0.5f);
-			posY = (int)(((float)(_pattern->endY - _pattern->startY)) / ((float)(_pattern->nextTrialStartTime - _pattern->curTrialStartTime - 1)) * ((float)(_time - _pattern->curTrialStartTime)) + _pattern->startY + 0.5f);
-		}
-		else if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS2)
-		{
-			if (_pattern->endX > _pattern->startX)
-			{
-				posY = _pattern->startY;
-				posX = _pattern->startX + (_time - _pattern->curTrialStartTime);
-				if (posX > _pattern->endX) posX = _pattern->endX - (posX - _pattern->endX);
-			}
-			else if (_pattern->endX < _pattern->startX)
-			{
-				posY = _pattern->startY;
-				posX = _pattern->startX - (_time - _pattern->curTrialStartTime);
-				if (posX < _pattern->endX) posX = _pattern->endX + (_pattern->endX - posX);
-			}
-			if (_pattern->endY > _pattern->startY)
-			{
-				posX = _pattern->startX;
-				posY = _pattern->startY + (_time - _pattern->curTrialStartTime);
-				if (posY > _pattern->endY) posY = _pattern->endY - (posY - _pattern->endY);
-			}
-			else if (_pattern->endY < _pattern->startY)
-			{
-				posX = _pattern->startX;
-				posY = _pattern->startY - (_time - _pattern->curTrialStartTime);
-				if (posY < _pattern->endY) posY = _pattern->endY + (_pattern->endY - posY);
-			}
-		}
-		else
-		{
-			posX = _pattern->startX;
-			posY = _pattern->startY;
-		}
-
-		int destX, destY, srcX, srcY;
-
-		for (y = 0; y < imageInfo->contentHeight; y++)
-		{
-			destY = posY + y;
-
-			if (destY < 0) continue;
-			if (destY >= sizeY) break;
-
-			srcY = imageInfo->contentY + y;
-
-			for (x = 0; x < imageInfo->contentWidth; x++)
-			{
-				destX = posX + x;
-
-				if (destX < 0) continue;
-				if (destX >= sizeX) break;
-
-				srcX = imageInfo->contentX + x;	
-
-				if (imageInfo->data[srcY * imageInfo->width + srcX] > 0) 
-				{
-					buffer[destX + (destY * sizeX)] = 1;
-				}				
-			}
-		}
-
-		bool cur_on, center_on;
-		int surround_on_count, surround_off_count;
-
-		for (x = 0; x < sizeX; x++)
-		{
-			for (y = 0; y < sizeY; y++)
-			{
-				surround_on_count = 0;
-				surround_off_count = 0;
-
-				for (x1 = Max(0, x - 1); x1 < Min(sizeX, x + 2); x1++)
-				{
-					for (y1 = Max(0, y - 1); y1 < Min(sizeY, y + 2); y1++)
-					{
-						cur_on = (buffer[x1 + (y1 * sizeX)] == 1);
-
-						if ((x1 == x) && (y1 == y))
-						{
-							center_on = cur_on;
-						}
-						else
-						{
-							if (cur_on) {
-								surround_on_count++;
-							} else {
-								surround_off_count++;
-							}
-						}
-					}
-				}
-
-				// On-center, off-surround in value 0.
-				if (center_on && (surround_off_count >= 2)) {
-					SetIsActive(x, y, 0, true);
-				}
-
-				// Off-center, on-surround in value 1.
-				if ((GetNumValues() > 1) && (center_on == false) && (surround_on_count >= 2)) {
-					SetIsActive(x, y, 1, true);
-				}
-			}
-		}
-
-		break;
-	}
+   case PATTERN_BOUNCING_STRIPE:
+      // Apply stripe test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      numSteps = (sizeX + sizeY - 2);
+      //step = (_pattern->trialCount - 1) % (numSteps * 2);
+      step = 0;
+      // Reverse direction of stripe if appropriate.
+      if (step >= numSteps) {
+         step = numSteps - (step - numSteps);
+      }
+
+      for (x = 0; x < sizeX; x++)
+      {
+         y = step - x;
+
+         if (y < 0) break;
+         if (y >= sizeY) continue;
+
+         for (i = 0; i < numValues; i++) {
+            SetIsActive(x, y, i, true);
+         }
+      }
+      break;
+
+   case PATTERN_BAR:
+      // Apply bar test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      numSteps = sizeX;
+      //step = (_pattern->trialCount - 1) % numSteps;
+      step = 0;
+      for (y = 0; y < sizeY; y++)
+      {
+         for (i = 0; i < numValues; i++) {
+            SetIsActive(step, y, i, true);
+         }
+      }
+      break;
+
+   case PATTERN_BOUNCING_BAR:
+      // Apply bouncing bar test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      numSteps = sizeX - 1;
+      //step = (_pattern->trialCount - 1) % (numSteps * 2);
+      step = 0;
+      // Reverse direction of bar if appropriate.
+      if (step >= numSteps) {
+         step = numSteps - (step - numSteps);
+      }
+
+      for (y = 0; y < sizeY; y++)
+      {
+         for (i = 0; i < numValues; i++) {
+            SetIsActive(step, y, i, true);
+         }
+      }
+      break;
+
+   case PATTERN_TEXT:
+      // Apply text test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      numSteps = _pattern->string.length();
+      //step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
+      step = 0;
+      scale = 0.8 * ((float)sizeY / 8.0f);
+
+      // Initialize image and painter if not yet done.
+      if (image == NULL)
+      {
+         image = new QImage(sizeX, sizeY, QImage::Format_Mono);
+         painter = new QPainter(image);
+         painter->setPen(QColor(255, 255, 255));
+         painter->setFont(QFont("Times", 10, QFont::Bold));
+         painter->scale(scale, scale);
+      }
+
+      // Draw the text to the image.
+      image->fill(0);
+      painter->drawText(QRect(0, 0, (float)sizeX / scale, (float)sizeY / scale), Qt::AlignCenter, _pattern->string.mid(step, 1));
+
+      for (y = 0; y < sizeY; y++)
+      {
+         for (x = 0; x < sizeX; x++)
+         {
+            if (QColor(image->pixel(x, y)).lightness() >= 128)
+            {
+               for (i = 0; i < numValues; i++) {
+                  SetIsActive(x, y, i, true);
+               }
+            }
+         }
+      }
+      break;
+
+   case PATTERN_BITMAP:
+      // Apply bitmap test pattern.
+
+      // If this isn't the start of a new trial, no need to update activity.
+      //if (_time != _pattern->curTrialStartTime) {
+      //	break;
+      //}
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      // If there are no bitmaps given for this TestPattern, do nothing.
+      if (_pattern->bitmaps.size() == 0) {
+         break;
+      }
+
+      numSteps = (int)(_pattern->bitmaps.size());
+      //step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
+      step = 0;
+
+      // Get a pointer to the current bitmap array.
+      bitmap = _pattern->bitmaps[step];
+
+      for (y = 0; y < sizeY; y++)
+      {
+         for (x = 0; x < sizeX; x++)
+         {
+            if (bitmap[y * sizeX + x] != 0)
+            {
+               for (i = 0; i < numValues; i++) {
+                  SetIsActive(x, y, i, true);
+               }
+            }
+         }
+      }
+      break;
+   case PATTERN_IMAGE:
+      // Apply image test pattern.
+
+      // If there are no images given for this Pattern, do nothing.
+      if (_pattern->images.size() == 0) {
+         break;
+      }
+
+      numSteps = (int)(_pattern->images.size());
+      //step = (numSteps > 0) ? ((_pattern->trialCount - 1) % numSteps) : 0;
+      step = 0;
+      // Get a pointer to the current ImageInfo.
+      imageInfo = _pattern->images[step];
+
+      // If this is the start of a new trial...
+      /*if (_time == _pattern->curTrialStartTime)
+      {
+      if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS)
+      {
+      // Determine start and end coordinates.
+      if ((rand() % 2) == 0)
+      {
+      // Horizontal movement.
+
+      if ((rand() % 2) == 0)
+      {
+      // Left to right
+      _pattern->startX = 0;
+      _pattern->endX = sizeX - imageInfo->contentWidth;
+      }
+      else
+      {
+      // Right to left
+      _pattern->startX = sizeX - imageInfo->contentWidth;
+      _pattern->endX = 0;
+      }
+
+      // Choose start and end Y positions.
+      _pattern->startY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
+      _pattern->endY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
+      }
+      else
+      {
+      // Vertical movement.
+
+      if ((rand() % 2) == 0)
+      {
+      // Top to bottom
+      _pattern->startY = 0;
+      _pattern->endY = sizeY - imageInfo->contentHeight;
+      }
+      else
+      {
+      // Bottom to top
+      _pattern->startY = sizeY - imageInfo->contentHeight;
+      _pattern->endY = 0;
+      }
+
+      // Choose start and end X positions.
+      _pattern->startX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
+      _pattern->endX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
+      }
+      }
+      else if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS2)
+      {
+      // Determine start and end coordinates.
+      if ((rand() % 2) == 0)
+      {
+      // Horizontal movement.
+
+      if ((rand() % 2) == 0)
+      {
+      // Left to right
+      _pattern->startX = 0;
+      _pattern->endX = sizeX - imageInfo->contentWidth;
+      }
+      else
+      {
+      // Right to left
+      _pattern->startX = sizeX - imageInfo->contentWidth;
+      _pattern->endX = 0;
+      }
+
+      // Choose start and end Y position.
+      _pattern->startY = _pattern->endY = (sizeY <= imageInfo->contentHeight) ? 0 : (rand() % (sizeY - imageInfo->contentHeight));
+      }
+      else
+      {
+      // Vertical movement.
+
+      if ((rand() % 2) == 0)
+      {
+      // Top to bottom
+      _pattern->startY = 0;
+      _pattern->endY = sizeY - imageInfo->contentHeight;
+      }
+      else
+      {
+      // Bottom to top
+      _pattern->startY = sizeY - imageInfo->contentHeight;
+      _pattern->endY = 0;
+      }
+
+      // Choose start and end X position.
+      _pattern->startX = _pattern->endX = (sizeX <= imageInfo->contentWidth) ? 0 : (rand() % (sizeX - imageInfo->contentWidth));
+      }
+      }
+      else
+      {
+      // Image doesn't move.
+      _pattern->startX = _pattern->startY = _pattern->endX = _pattern->endY = 0;
+      }
+      }
+
+      // Start by clearing all activity.
+      DeactivateAll();
+
+      // Clear the image processing buffer.
+      memset(buffer, 0, sizeX * sizeY * sizeof(int));
+
+      // Determine current image position.
+      int posX, posY;
+      if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS)
+      {
+      posX = (int)(((float)(_pattern->endX - _pattern->startX)) / ((float)(_pattern->nextTrialStartTime - _pattern->curTrialStartTime - 1)) * ((float)(_time - _pattern->curTrialStartTime)) + _pattern->startX + 0.5f);
+      posY = (int)(((float)(_pattern->endY - _pattern->startY)) / ((float)(_pattern->nextTrialStartTime - _pattern->curTrialStartTime - 1)) * ((float)(_time - _pattern->curTrialStartTime)) + _pattern->startY + 0.5f);
+      }
+      else if (_pattern->imageMotion == PATTERN_IMAGE_MOTION_ACROSS2)
+      {
+      if (_pattern->endX > _pattern->startX)
+      {
+      posY = _pattern->startY;
+      posX = _pattern->startX + (_time - _pattern->curTrialStartTime);
+      if (posX > _pattern->endX) posX = _pattern->endX - (posX - _pattern->endX);
+      }
+      else if (_pattern->endX < _pattern->startX)
+      {
+      posY = _pattern->startY;
+      posX = _pattern->startX - (_time - _pattern->curTrialStartTime);
+      if (posX < _pattern->endX) posX = _pattern->endX + (_pattern->endX - posX);
+      }
+      if (_pattern->endY > _pattern->startY)
+      {
+      posX = _pattern->startX;
+      posY = _pattern->startY + (_time - _pattern->curTrialStartTime);
+      if (posY > _pattern->endY) posY = _pattern->endY - (posY - _pattern->endY);
+      }
+      else if (_pattern->endY < _pattern->startY)
+      {
+      posX = _pattern->startX;
+      posY = _pattern->startY - (_time - _pattern->curTrialStartTime);
+      if (posY < _pattern->endY) posY = _pattern->endY + (_pattern->endY - posY);
+      }
+      }
+      else
+      {
+      posX = _pattern->startX;
+      posY = _pattern->startY;
+      }
+
+      int destX, destY, srcX, srcY;
+
+      for (y = 0; y < imageInfo->contentHeight; y++)
+      {
+      destY = posY + y;
+
+      if (destY < 0) continue;
+      if (destY >= sizeY) break;
+
+      srcY = imageInfo->contentY + y;
+
+      for (x = 0; x < imageInfo->contentWidth; x++)
+      {
+      destX = posX + x;
+
+      if (destX < 0) continue;
+      if (destX >= sizeX) break;
+
+      srcX = imageInfo->contentX + x;
+
+      if (imageInfo->data[srcY * imageInfo->width + srcX] > 0)
+      {
+      buffer[destX + (destY * sizeX)] = 1;
+      }
+      }
+      }
+
+      bool cur_on, center_on;
+      int surround_on_count, surround_off_count;
+
+      for (x = 0; x < sizeX; x++)
+      {
+      for (y = 0; y < sizeY; y++)
+      {
+      surround_on_count = 0;
+      surround_off_count = 0;
+
+      for (x1 = Max(0, x - 1); x1 < Min(sizeX, x + 2); x1++)
+      {
+      for (y1 = Max(0, y - 1); y1 < Min(sizeY, y + 2); y1++)
+      {
+      cur_on = (buffer[x1 + (y1 * sizeX)] == 1);
+
+      if ((x1 == x) && (y1 == y))
+      {
+      center_on = cur_on;
+      }
+      else
+      {
+      if (cur_on) {
+      surround_on_count++;
+      } else {
+      surround_off_count++;
+      }
+      }
+      }
+      }
+
+      // On-center, off-surround in value 0.
+      if (center_on && (surround_off_count >= 2)) {
+      SetIsActive(x, y, 0, true);
+      }
+
+      // Off-center, on-surround in value 1.
+      if ((GetNumValues() > 1) && (center_on == false) && (surround_on_count >= 2)) {
+      SetIsActive(x, y, 1, true);
+      }
+      }
+      }
+      }*/
+      break;
+   }
 }

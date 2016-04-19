@@ -1,7 +1,0 @@
-Time 1001 feature accuracy: Missing synapses: 0.180421, Extra synapses: 1.19913.
-Time 2001 feature accuracy: Missing synapses: 0.184836, Extra synapses: 0.681744.
-Time 3001 feature accuracy: Missing synapses: 0.192624, Extra synapses: 0.65163.
-Time 4001 feature accuracy: Missing synapses: 0.191293, Extra synapses: 0.656332.
-Time 5001 feature accuracy: Missing synapses: 0.182428, Extra synapses: 0.661972.
-Time 6001 feature accuracy: Missing synapses: 0.177509, Extra synapses: 0.654462.
-Time 7001 feature accuracy: Missing synapses: 0.180317, Extra synapses: 0.655228.

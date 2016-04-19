@@ -3,6 +3,7 @@
 #include "htm/NetworkManager.h"
 #include "htm/InputSpace.h"
 #include "htm/Classifier.h"
+#include "htm/SDR.h"
 
 #include "basicgraph.h"
 
@@ -285,6 +286,7 @@ void InputspacePredictionGraph::UpdateGraphData(int time)
 void InputspacePredictionGraph::ReplotGraph()
 {
    ui.basicGraph->xAxis->setRange(dLastRecordedTime - 100, dLastRecordedTime + 10);
+   ui.basicGraph->yAxis->setRange(dpInputSpace->dpSdrEncoder->dMinValue, dpInputSpace->dpSdrEncoder->dMaxValue);
    OnReplot();
 }
 
@@ -354,6 +356,11 @@ void InputspaceOverlapGraph::ReplotGraph()
    float overlapAdj;
    float notAdj;
 
+   // No Normalization
+   overlapMult = 1;
+   overlapOffset = 0;
+   notMult = 1;
+   notOffset = 0;
 
 
    dpBarsOverlap->clearData();

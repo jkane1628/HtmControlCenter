@@ -51,6 +51,8 @@ public slots:
    void cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc);
    void cliStepHtmNetwork(int numSteps, CliReturnCode* pCliRc);
 
+   
+
 private slots:
    void MouseMode_Select();
    void MouseMode_Drag();
@@ -116,6 +118,7 @@ public:
    // CLI Command Functions
    CliReturnCode CliCommand_loadNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
    CliReturnCode CliCommand_stepNetwork(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
+   CliReturnCode CliCommand_vectorTest(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams);
    
 
 

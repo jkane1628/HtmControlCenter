@@ -55,17 +55,24 @@ bool Classifier::GetIsActive(int _x, int _y, int _index)
 void Classifier::Classify() 
 {
    // Create an SDR from the projection of the prediction cells projected through the proximal synaspes
-   CreateProjectionSdr(2);
+   CreateProjectionSdr(1);
 
    // Find the best overlap from the input values
    // NOTE : In the case of no overlap (no predcition), dMaxOverlapValue will not be updated and the last value will still be there.
    dPreviousMaxOverlapValue = dMaxOverlapValue;
    dNumValuesWithOverlap = dpProjectionSdr->GetStrongestOverlapAmounts(dpProjectionSdr->dpData, &dMaxOverlapValue, dOverlapArraySize, dOverlapValueArray, dOverlapAmountArray, dNotOverlapAmountArray);
 
-   CJTRACE(TRACE_HIGH_LEVEL, "Best val=%.3lf", dMaxOverlapValue);
-   for (int i = 0; i < dOverlapArraySize; i++)
+   if (dNumValuesWithOverlap == 0)
+   { 
+      CJTRACE(TRACE_HIGH_LEVEL, "No Overlap to classify");
+   }
+   else
    {
-      CJTRACE(TRACE_HIGH_LEVEL, "Match val=%.3lf, overlap=%.3lf, not=%.3lf", dOverlapValueArray[i], dOverlapAmountArray[i], dNotOverlapAmountArray[i]);
+      CJTRACE(TRACE_HIGH_LEVEL, "Best val=%.3lf", dMaxOverlapValue);
+      for (int i = 0; i < MIN(dOverlapArraySize, dNumValuesWithOverlap); i++)
+      {
+         CJTRACE(TRACE_HIGH_LEVEL, "Match val=%.3lf, overlap=%.3lf, not=%.3lf", dOverlapValueArray[i], dOverlapAmountArray[i], dNotOverlapAmountArray[i]);
+      }
    }
 }
 
@@ -82,7 +89,7 @@ bool Classifier::CreateProjectionSdr(int numSteps)
    float maxValue=0;
 
    if (dpProjectionSdr == NULL)
-      dpProjectionSdr = new SDR_Float(inputspace->dpSdr);
+      dpProjectionSdr = new SDR_Float(inputspace->dpSdrEncoder);
    dpProjectionSdr->ZeroAllValues(dpProjectionSdr->dpData);
 
    for (int colY = 0; colY < curRegion->GetSizeY(); colY++)

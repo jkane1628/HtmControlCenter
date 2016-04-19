@@ -591,9 +591,9 @@ void View::UpdateForNetwork(NetworkManager *_networkManager)
 	}
 
 	// Add the ID of each Classifier to the showComboBox.
-	for (std::vector<Classifier*>::const_iterator classifier_iter = _networkManager->classifiers.begin(), end = _networkManager->classifiers.end(); classifier_iter != end; ++classifier_iter) {
+	/*for (std::vector<Classifier*>::const_iterator classifier_iter = _networkManager->classifiers.begin(), end = _networkManager->classifiers.end(); classifier_iter != end; ++classifier_iter) {
 		showComboBox->addItem((*classifier_iter)->GetID());
-	}
+	}*/
 
 	// Start with no DataSpace selected, so the selection of the any will trigger a signal.
 	showComboBox->setCurrentIndex(-1);

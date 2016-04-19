@@ -39,11 +39,13 @@
 CJCLI_CREATE_FCNMAPPER(CliMainWindowCommandSet)
 CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, ln, CliCommand_loadNetwork)
 CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, s,  CliCommand_stepNetwork)
+CJCLI_MAP_CMD_TO_FCN(CliMainWindowCommandSet, vec, CliCommand_vectorTest)
 
 // Define CLI commands for the default command set
 CJCLI_COMMAND_DEFINTION_START(CliMainWindowCommandSet)
 CJCLI_COMMAND_DESCRIPTOR(ln, eCliAccess_Guest, "Loads a HTM given network file, or the last loaded network file")
 CJCLI_COMMAND_DESCRIPTOR(s, eCliAccess_Guest, "Moves the current HTM network forward the specified steps")
+CJCLI_COMMAND_DESCRIPTOR(vec, eCliAccess_Guest, "Test the vRegion Class")
 CJCLI_COMMAND_DEFINTION_END
 
 
@@ -435,5 +437,24 @@ CliReturnCode CliMainWindowCommandSet::CliCommand_stepNetwork(CJConsole* pConsol
 
    // Send signal to main window so HTM & GUI operations can execute on proper thread
    StepNetworkSignal(numStepsToRun, &rc);
+   return eCliReturn_Success;
+}
+
+
+#include "htm/vInputSpace.h"
+#include "htm/vRegion.h"
+
+CliReturnCode CliMainWindowCommandSet::CliCommand_vectorTest(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
+{
+   // Create the classes
+   vInputSpace* pInputSpace = new vInputSpace(16, 16);
+   vRegion* pRegion = new vRegion(pInputSpace, eRegionSize_16x16x8);
+
+   pInputSpace->SetupEncoder(8, 16, 0, 16);
+   pInputSpace->EncodeSDR(0);
+
+   pRegion->CreateRegion();
+   pRegion->Step();
+
    return eCliReturn_Success;
 }

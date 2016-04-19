@@ -15,6 +15,7 @@
 #include "MemManager.h"
 #include "Synapse.h"
 #include "Cell.h"
+#include "SDR.h"
 #include "NetworkManager.h"
 
 #undef CJTRACE_MODULE_ID
@@ -916,6 +917,7 @@ InputSpace *NetworkManager::ParseInputSpace(QXmlStreamReader &_xml, QString &_er
 	int sizeX = 0, sizeY = 0, numValues = 0;
 	std::vector<PatternInfo*> patterns;
 	PatternInfo *newPattern;
+   SDR *newEncoder = NULL;
 	InputSpace *newInputSpace = NULL;
 
 	// Look for ID attribute
@@ -973,6 +975,12 @@ InputSpace *NetworkManager::ParseInputSpace(QXmlStreamReader &_xml, QString &_er
 				}
 			}
 
+         // Encoder
+         else if (tokenName == "encoder")
+         {
+            newEncoder = ParseEncoder(_xml, _error_msg, sizeX, sizeY);
+         }
+
 			// Pattern
 			else if (tokenName == "pattern") 
 			{
@@ -1016,20 +1024,59 @@ InputSpace *NetworkManager::ParseInputSpace(QXmlStreamReader &_xml, QString &_er
 	}
   
 	// Create the new InputSpace
-	newInputSpace = new InputSpace(id, sizeX, sizeY, numValues, patterns);
+   newInputSpace = new InputSpace(id, sizeX, sizeY, numValues, patterns, newEncoder);
 
 	return newInputSpace;
+}
+
+SDR* NetworkManager::ParseEncoder(QXmlStreamReader &_xml, QString &_error_msg, int _sizeX, int _sizeY)
+{
+   int active = 0;
+   int range = 0;
+   float min_value = 0;
+   float max_value = 0;
+
+   // Look for attributes
+   QXmlStreamAttributes attributes = _xml.attributes();
+
+   if (attributes.hasAttribute("type"))
+   {
+      QString typeString = attributes.value("type").toString().toLower();
+   }
+
+   if (attributes.hasAttribute("active"))
+   {
+      active = attributes.value("active").toString().toInt();
+   }
+
+   if (attributes.hasAttribute("range"))
+   {
+      range = attributes.value("range").toString().toInt();
+   }
+
+   if (attributes.hasAttribute("min_value"))
+   {
+      min_value = attributes.value("min_value").toString().toFloat();
+   }
+
+   if (attributes.hasAttribute("max_value"))
+   {
+      max_value = attributes.value("max_value").toString().toFloat();
+   }
+   return new SDR(_sizeX, _sizeY, active, range, min_value, max_value);
 }
 
 PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_error_msg, int _width, int _height)
 {
 	PatternType patternType = PATTERN_NONE;
-	PatternImageFormat patternImageFormat = PATTERN_IMAGE_FORMAT_UNDEF;
+	PatternFileFormat patternImageFormat = PATTERN_FILE_FORMAT_UNDEF;
 	PatternImageMotion patternImageMotion = PATTERN_IMAGE_MOTION_NONE;
 	int startTime = -1, endTime = -1, patternMinTrialDuration = 1, patternMaxTrialDuration = 1, imageWidth, imageHeight;
+   int seed = 0;
 	QString patternString = "";
 	std::vector<int*> bitmaps;
 	std::vector<ImageInfo*> images;
+   std::vector<float> values;
 	int x, y;
 	QString curString;
 	float curVal;
@@ -1057,18 +1104,13 @@ PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_erro
 			patternType = PATTERN_BITMAP;
 		} else if (typeString == "image") {
 			patternType = PATTERN_IMAGE;
-      } else if (typeString == "function") {
-         patternType = PATTERN_FUNCTION;
+      } else if (typeString == "encodedsequence") {
+         patternType = PATTERN_ENCODED_SEQUENCE;
+      } else if (typeString == "encodedfile") {
+         patternType = PATTERN_ENCODED_FILE;
+      } else if (typeString == "encodedrandom") {
+         patternType = PATTERN_ENCODED_RANDOM;
       }
-	}
-
-	if (attributes.hasAttribute("format")) 
-	{
-		QString formatString = attributes.value("format").toString().toLower();
-					
-		if (formatString == "spreadsheet") {
-			patternImageFormat = PATTERN_IMAGE_FORMAT_SPREADSHEET;
-		} 
 	}
 
 	if (attributes.hasAttribute("motion")) 
@@ -1093,6 +1135,35 @@ PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_erro
 		imageHeight = attributes.value("height").toString().toInt();
 	}
 
+   if (attributes.hasAttribute("seed"))
+   {
+      seed = attributes.value("seed").toString().toInt();
+      srand(seed);
+   }
+
+   if (attributes.hasAttribute("values"))
+   {
+      strncpy(lineBuffer, attributes.value("values").toLatin1(), LINE_BUFFER_LEN);
+      linePos = lineBuffer;
+      while (ReadItem(linePos, ',', stringBuffer, STRING_BUFFER_LEN))
+      {
+         values.push_back(atof(stringBuffer));
+      }
+      values.push_back(atof(stringBuffer));
+   }
+
+   if (attributes.hasAttribute("format"))
+   {
+      QString formatString = attributes.value("format").toString().toLower();
+
+      if (formatString == "spreadsheet") {
+         patternImageFormat = PATTERN_FILE_FORMAT_SPREADSHEET;
+      }
+      if (formatString == "csv") {
+         patternImageFormat = PATTERN_FILE_FORMAT_CSV;
+      }
+   }
+
 	if (attributes.hasAttribute("source")) 
 	{
 		// Get the source file's filename.
@@ -1110,62 +1181,80 @@ PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_erro
 		if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) 
 		{
 			_error_msg = "Could not open file " + sourceFilename + ".";
+         delete file;
 			return NULL;
 		}
 
 		QTextStream in(file);
-    while (!in.atEnd())
-    {
-      QString line = in.readLine();
+      while (!in.atEnd())
+      {
+         QString line = in.readLine();
 			strncpy(lineBuffer, line.toStdString().data(), LINE_BUFFER_LEN);
 			linePos = lineBuffer;
 
-			// Create a new ImageInfo for this image.
-			ImageInfo *curImageInfo = new ImageInfo();
+         if (patternImageFormat = PATTERN_FILE_FORMAT_CSV)
+         {
+            // Read the next item on the line into the stringBuffer.
+            while (ReadItem(linePos, ',', stringBuffer, STRING_BUFFER_LEN))
+            {
+               curVal = atof(stringBuffer);
+               values.push_back(curVal);
+            }
+            if (stringBuffer[0] != 0)
+            {
+               curVal = atof(stringBuffer);
+               values.push_back(curVal);
+            }
+         }
+         else if (patternImageFormat == PATTERN_FILE_FORMAT_SPREADSHEET)
+         {
+            // Create a new ImageInfo for this image.
+            ImageInfo *curImageInfo = new ImageInfo();
 
-			// Read the first item on the line, the label, into the stringBuffer.
-			ReadItem(linePos, ' ', stringBuffer, STRING_BUFFER_LEN);
+            // Read the first item on the line, the label, into the stringBuffer.
+            ReadItem(linePos, ' ', stringBuffer, STRING_BUFFER_LEN);
 
-			curImageInfo->data = new float[imageWidth * imageHeight];
-			curImageInfo->label = stringBuffer;
-			curImageInfo->width = imageWidth;
-			curImageInfo->height = imageHeight;
-			
-			int contentX0 = imageWidth -1, contentY0 = imageHeight - 1, contentX1 = 0, contentY1 = 0;
+            curImageInfo->data = new float[imageWidth * imageHeight];
+            curImageInfo->label = stringBuffer;
+            curImageInfo->width = imageWidth;
+            curImageInfo->height = imageHeight;
 
-			for (y = 0; y < imageHeight; y++)
-			{
-				for (x = 0; x < imageWidth; x++)
-				{
-					// Read the next item on the line into the stringBuffer.
-					ReadItem(linePos, ' ', stringBuffer, STRING_BUFFER_LEN);
+            int contentX0 = imageWidth - 1, contentY0 = imageHeight - 1, contentX1 = 0, contentY1 = 0;
 
-					const char *valStringStart = strchr(stringBuffer, ':') + 1;
-					curVal = atof(valStringStart);
+            for (y = 0; y < imageHeight; y++)
+            {
+               for (x = 0; x < imageWidth; x++)
+               {
+                  // Read the next item on the line into the stringBuffer.
+                  ReadItem(linePos, ' ', stringBuffer, STRING_BUFFER_LEN);
 
-					// Record current pixel value in the image data.
-					curImageInfo->data[y * imageWidth + x] = curVal;
+                  const char *valStringStart = strchr(stringBuffer, ':') + 1;
+                  curVal = atof(valStringStart);
 
-					// Keep track of inner content area.
-					if (curVal > 0)
-					{
-						contentX0 = Min(contentX0, x);
-						contentY0 = Min(contentY0, y);
-						contentX1 = Max(contentX1, x);
-						contentY1 = Max(contentY1, y);
-					}
-				}
-			}
+                  // Record current pixel value in the image data.
+                  curImageInfo->data[y * imageWidth + x] = curVal;
 
-			// Record the dimensions of the image's inner content area.
-			curImageInfo->contentX = contentX0;
-			curImageInfo->contentY = contentY0;
-			curImageInfo->contentWidth = contentX1 - contentX0 + 1;
-			curImageInfo->contentHeight = contentY1 - contentY0 + 1;
+                  // Keep track of inner content area.
+                  if (curVal > 0)
+                  {
+                     contentX0 = Min(contentX0, x);
+                     contentY0 = Min(contentY0, y);
+                     contentX1 = Max(contentX1, x);
+                     contentY1 = Max(contentY1, y);
+                  }
+               }
+            }
 
-			// Add the curImageInfo to the images array.
-			images.push_back(curImageInfo);
-    }
+            // Record the dimensions of the image's inner content area.
+            curImageInfo->contentX = contentX0;
+            curImageInfo->contentY = contentY0;
+            curImageInfo->contentWidth = contentX1 - contentX0 + 1;
+            curImageInfo->contentHeight = contentY1 - contentY0 + 1;
+
+            // Add the curImageInfo to the images array.
+            images.push_back(curImageInfo);
+         }
+      }
 					
 		// Delete the source file object.
 		delete file;
@@ -1181,40 +1270,10 @@ PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_erro
 		endTime = attributes.value("end").toString().toInt();
 	}
 
-	if (attributes.hasAttribute("trial_duration")) 
-	{
-		int dashPos;
-		QString durationString = attributes.value("trial_duration").toString();
+   if (attributes.hasAttribute("string")) {
+      patternString = attributes.value("string").toString();
+   }
 
-		if ((dashPos = durationString.indexOf("-")) != -1)
-		{
-			patternMinTrialDuration = durationString.section(QChar('-'), 0, 0).toInt();
-			patternMaxTrialDuration = durationString.section(QChar('-'), 1, 1).toInt();
-		}
-		else
-		{
-			patternMinTrialDuration = patternMaxTrialDuration = durationString.toInt(); 
-		}
-	}
-
-	if (attributes.hasAttribute("string")) {
-		patternString = attributes.value("string").toString();
-	}
-
-	if (patternMinTrialDuration <= 0) {
-		_error_msg = QString("Minimum trial duration is too low: ").arg(patternMinTrialDuration);
-		return NULL;
-	}
-
-	if (patternMaxTrialDuration <= 0) {
-		_error_msg = QString("Maximum trial duration is too low: ").arg(patternMaxTrialDuration);
-		return NULL;
-	}
-
-	if (patternMaxTrialDuration < patternMinTrialDuration) {
-		_error_msg = QString("Maximum trial duration is less than minimum trial duration.");
-		return NULL;
-	}
 
 	// Advance to the next element.
 	_xml.readNext();
@@ -1256,7 +1315,7 @@ PatternInfo *NetworkManager::ParsePattern(QXmlStreamReader &_xml, QString &_erro
 		_xml.readNext();
 	}
 
-	return new PatternInfo(patternType, startTime, endTime, patternMinTrialDuration, patternMaxTrialDuration, patternString, patternImageMotion, bitmaps, images);
+	return new PatternInfo(patternType, startTime, endTime, seed, patternString, patternImageMotion, bitmaps, images, values);
 }
 
 Classifier *NetworkManager::ParseClassifier(QXmlStreamReader &_xml, QString &_error_msg)
@@ -1332,14 +1391,14 @@ Classifier *NetworkManager::ParseClassifier(QXmlStreamReader &_xml, QString &_er
 	return new Classifier(id, numitems, regionID, inputspaceID, labels);
 }
 
-void NetworkManager::ReadItem(char* &_linePos, char _separator, char *_stringBuffer, int _stringBufferLen)
+bool NetworkManager::ReadItem(char* &_linePos, char _separator, char *_stringBuffer, int _stringBufferLen)
 {
 	char *separator_pos = strchr(_linePos, _separator);
 
 	if (separator_pos == NULL)
 	{
-		_stringBuffer[0] = '\0';
-		return;
+      strncpy(_stringBuffer, _linePos,_stringBufferLen - 2);
+		return FALSE;
 	}
 
 	// Copy the isolated item into the _stringBuffer.
@@ -1348,6 +1407,7 @@ void NetworkManager::ReadItem(char* &_linePos, char _separator, char *_stringBuf
 
 	// Advance the _linePos past the isolated item and the separator.
 	_linePos = separator_pos + 1;
+   return TRUE;
 }
 
 void NetworkManager::ClearData()

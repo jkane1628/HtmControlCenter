@@ -147,7 +147,8 @@ void CJTrace::SetTraceIdString(eCJTraceId traceID, char const* prefixString)
 }
 
 
-inline U32 CJTrace::GetTraceLevel(eCJTraceId traceID) { return dTraceIdLevelArray[traceID]; }
+U32 CJTrace::GetTraceLevel(eCJTraceId traceID) { return dTraceIdLevelArray[traceID]; }
+
 BOOL  CJTrace::SetTraceLevel(eCJTraceId traceID, U32 level)
 { 
    if (traceID >= eTraceId_LAST_ENTRY)

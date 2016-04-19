@@ -29,8 +29,9 @@ public:
 	Region *ParseRegion(QXmlStreamReader &_xml, SynapseParameters _proximalSynapseParams, SynapseParameters _distalSynapseParams, QString &_error_msg);
 	InputSpace *ParseInputSpace(QXmlStreamReader &_xml, QString &_error_msg);
 	PatternInfo *ParsePattern(QXmlStreamReader &_xml, QString &_error_msg, int _width, int _height);
+   SDR* ParseEncoder(QXmlStreamReader &_xml, QString &_error_msg, int _sizeX, int _sizeY);
 	Classifier *ParseClassifier(QXmlStreamReader &_xml, QString &_error_msg);
-	void ReadItem(char* &_linePos, char _separator, char *_stringBuffer, int _stringBufferLen);
+	bool ReadItem(char* &_linePos, char _separator, char *_stringBuffer, int _stringBufferLen);
 
 	void ClearData();
 	void ClearData_ProximalSegment(Segment *_segment);

@@ -172,6 +172,36 @@
     <ClCompile Include="..\src\htm\SDR.cpp">
       <Filter>HTM Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\htm\vRegion.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\vInputSpace.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_basicgraph.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_consoledock.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_controlcenter.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_controlwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mainwindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mousecontrols.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_qcustomplot.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_View.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Resources\images.qrc">
@@ -339,6 +369,12 @@
       <Filter>CJLib\include</Filter>
     </ClInclude>
     <ClInclude Include="..\src\htm\SDR.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\vRegion.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\vInputSpace.h">
       <Filter>HTM Source</Filter>
     </ClInclude>
   </ItemGroup>

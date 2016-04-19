@@ -19,8 +19,27 @@ Boosting takes place during times 1-1000. Run until time ~1100 to allow temporal
 		<SizeX>12</SizeX>
 		<SizeY>12</SizeY>
 		<NumValues>1</NumValues>
-		<Pattern type="Function" start="00000" end="10000" x_initial="000"></Pattern>
-    <Pattern type="Function" start="10001" end="20000" x_initial="100"></Pattern>
+
+    <Encoder type="value" range="40" active="20" min_value="0" max_value="100"></Encoder>
+    <Pattern type="encodedsequence" start="1" end="1000000" values="0,10,20,30,40,50,60,70,80,90,100"></Pattern>
+    
+   
+    
+    
+<!--
+ <Pattern type="encodedrandom" start="1" end="1000000" seed="123"></Pattern>
+    <Encoder type="value" range="40" active="20" min_value="0" max_value="5"></Encoder>
+    <Pattern type="encodedfile" start="000" end="200" format="csv" source="./sin_data_0_5_20.csv"></Pattern>
+    <Pattern type="encodedfile" start="201" end="400" format="csv" source="./cos_data_0_5_20.csv"></Pattern>
+    <Pattern type="encodedrandom" start="401" end="600" seed="123"></Pattern>
+    <Pattern type="encodedfile" start="601" end="800" format="csv" source="./sin_data_0_5_20.csv"></Pattern>
+    <Pattern type="encodedfile" start="801" end="1000" format="csv" source="./cos_data_0_5_20.csv"></Pattern>
+    
+		<Pattern type="encodedsequence" start="000" end="100" values="0,11,22,33,44,55"></Pattern>
+    <Pattern type="encodedfile" start="101" end="400" format="csv" source="./sin_data_0_5_20.csv"></Pattern>
+    <Pattern type="encodedrandom" start="401" end="1100" seed="123"></Pattern>
+    <Pattern type="encodedsequence" start="1101" end="-1" values="0,11,22,33,44,55"></Pattern>
+    -->
 	</InputSpace>
 	<Region id="Region1">
 		<SizeX>24</SizeX>
@@ -35,8 +54,8 @@ Boosting takes place during times 1-1000. Run until time ~1100 to allow temporal
 		<PercentageMinOverlap>5</PercentageMinOverlap>
 		<PercentageLocalActivity>3</PercentageLocalActivity>
 		<PredictionRadius>10</PredictionRadius>
-		<CellsPerColumn>16</CellsPerColumn>
-		<SegmentActivateThreshold>5</SegmentActivateThreshold>
+		<CellsPerColumn>5</CellsPerColumn>
+		<SegmentActivateThreshold>4</SegmentActivateThreshold>
 		<NewNumberSynapses>8</NewNumberSynapses>
 		<OutputColumnActivity>false</OutputColumnActivity>
 		<OutputCellActivity>true</OutputCellActivity>
