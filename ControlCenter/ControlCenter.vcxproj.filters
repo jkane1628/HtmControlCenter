@@ -202,6 +202,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_View.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\htm\vRegionSpatialPooler.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Resources\images.qrc">

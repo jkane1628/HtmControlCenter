@@ -1,5 +1,6 @@
 
-#include "stdint.h"
+#include <stdint.h>
+#include <malloc.h>
 
 #include "NetworkManager.h"
 #include "vInputSpace.h"
@@ -12,13 +13,11 @@ dpPermanenceUpdate(permanenceUpdateArray)
 {}
 
 
-#define MAX_NUM_SEGMENT_GROUPS 4
-
 vCell::vCell()
 :
 dNumSegments(0)
 {
-   for (int i = 0; i < MAX_NUM_SEGMENT_GROUPS; i++)
+   for (int i = 0; i < VHTM_MAX_NUM_SEGMENT_GROUPS; i++)
    {
       dpSegmentGroupArray[i] = NULL;
    }
@@ -34,10 +33,14 @@ dBoost(1)
 vRegion::vRegion(vInputSpace* pInputSpace, eRegionSize dRegionSize)
 :
 dpInputSpace(pInputSpace),
-dpCellStateArray0(NULL),
+dpCellStateArray(NULL),
 dpDistalSegmentPermanenceArray(NULL),
 dpColumnArray(NULL),
 dpCellArray(NULL),
+dpCurrentTimestepColumnStateArray(NULL),
+dNumColumnStateTimestepsInHistory(VHTM_NUM_COLUMN_STATE_HISTORY_ENTRIES_DEFAULT),
+dpCurrentTimestepCellStateArray(NULL),
+dNumCellStateTimestepsInHistory(VHTM_NUM_CELL_STATE_HISTORY_ENTRIES_DEFAULT),
 dDistalSegmentGroupsTotal(0),
 dDistalSegmentGroupsRemaining(0),
 dDistalSegmentGroupsSize(0),
@@ -75,7 +78,7 @@ vRegion::~vRegion()
    FreeRegion();
 }
 
-#include <malloc.h>
+
 
 
 bool vRegion::CreateRegion()
@@ -83,15 +86,16 @@ bool vRegion::CreateRegion()
    dDistalSegmentSize = dNumCells / VHTM_RECEPTIVE_RANGE_DIVISOR;
 
    // Memories
-   dpCellStateArray0 = (uint8_t*)_aligned_malloc(dNumCells, VHTM_MEMORY_ALIGNMENT_VALUE);
-   if (dpCellStateArray0 == NULL) return false;
-   memset(dpCellStateArray0, 0, dNumCells);
+   dpColumnStateArray = (uint8_t*)_aligned_malloc(dNumColumns * dNumColumnStateTimestepsInHistory, VHTM_MEMORY_ALIGNMENT_VALUE);
+   if (dpColumnStateArray == NULL) return false;
+   memset(dpColumnStateArray, 0, dNumColumns);
+   dpCurrentTimestepColumnStateArray = dpColumnStateArray;
+
+   dpCellStateArray = (uint8_t*)_aligned_malloc(dNumCells * dNumCellStateTimestepsInHistory, VHTM_MEMORY_ALIGNMENT_VALUE);
+   if (dpCellStateArray == NULL) return false;
+   memset(dpCellStateArray, 0, dNumCells);
+   dpCurrentTimestepCellStateArray = dpCellStateArray;
    
-   dpCellStateArray1 = (uint8_t*)_aligned_malloc(dNumCells, VHTM_MEMORY_ALIGNMENT_VALUE);
-   if (dpCellStateArray1 == NULL) return false;
-   memset(dpCellStateArray1, 0, dNumCells);
-
-
    int dpProximalSegmentPermanenceArraySize = dpInputSpace->GetSizeX() * dpInputSpace->GetSizeY() * dNumColumns;
    dpProximalSegmentPermanenceArray = (int8_t*)_aligned_malloc(dpProximalSegmentPermanenceArraySize, VHTM_MEMORY_ALIGNMENT_VALUE);
    if (dpProximalSegmentPermanenceArray == NULL) return false;
@@ -101,7 +105,11 @@ bool vRegion::CreateRegion()
    dpDistalSegmentPermanenceArray = (int8_t*)_aligned_malloc(dpDistalSegmentPermanenceArraySize, VHTM_MEMORY_ALIGNMENT_VALUE);
    if (dpDistalSegmentPermanenceArray == NULL) return false;
    memset(dpDistalSegmentPermanenceArray, VHTM_CONNECTED_PERMANENCE, dpDistalSegmentPermanenceArraySize);
-      
+
+   dpColumnBoostArray = (int*)_aligned_malloc(dNumColumns * sizeof(int), VHTM_MEMORY_ALIGNMENT_VALUE);
+   if (dpColumnBoostArray == NULL) return false;
+   memset(dpColumnBoostArray, 1, dNumColumns);
+
    dpCellArray = new vCell[dNumCells];
    dpColumnArray = new vColumn[dNumColumns];
 
@@ -110,112 +118,45 @@ bool vRegion::CreateRegion()
    dDistalSegmentGroupsSize = dDistalSegmentSize * VHTM_TARGET_SEGMENTS_PER_CELL / VHTM_MAX_NUM_SEGMENT_GROUPS;
    dpDistalSegmentGroupsNext = dpDistalSegmentPermanenceArray;
 
+   int dActiveColumnIndexArraySize = dNumColumns * sizeof(int);  // Allocate for all the cols to be active, this is way more than what's needed, but makes it simple
+   dpActiveColumnIndexArray = (int*)_aligned_malloc(dActiveColumnIndexArraySize, VHTM_MEMORY_ALIGNMENT_VALUE);
+
+   int dColumnActiveDutyCycleTotalsSize = dNumColumns * sizeof(int);
+   dpColumnActiveDutyCycleTotals = (int*)_aligned_malloc(dColumnActiveDutyCycleTotalsSize, VHTM_MEMORY_ALIGNMENT_VALUE); 
+
+   int dColumnOverlapDutyCycleTotalsSize = dNumColumns * sizeof(int);
+   dpColumnOverlapDutyCycleTotals = (int*)_aligned_malloc(dColumnOverlapDutyCycleTotalsSize, VHTM_MEMORY_ALIGNMENT_VALUE);
+
    return true;
 }
 
 void vRegion::FreeRegion()
 {
-   if (dpCellStateArray0) free(dpCellStateArray0);
-   if (dpCellStateArray1) free(dpCellStateArray1);
+   if (dpCellStateArray) free(dpCellStateArray);
+   dpCurrentTimestepColumnStateArray = NULL;
    if (dpProximalSegmentPermanenceArray) free(dpProximalSegmentPermanenceArray);
    if (dpDistalSegmentPermanenceArray) free(dpDistalSegmentPermanenceArray);
+   if (dpColumnBoostArray) free(dpColumnBoostArray);
    if (dpCellArray) free(dpCellArray);
    if (dpColumnArray) free(dpColumnArray);
+   if (dpActiveColumnIndexArray) free(dpActiveColumnIndexArray);
+   if (dpColumnActiveDutyCycleTotals) free(dpColumnActiveDutyCycleTotals);
+   if (dpColumnOverlapDutyCycleTotals) free(dpColumnOverlapDutyCycleTotals);
+
 }
 
 void vRegion::Step()
 {
    bool allowSpacialLearning = true;
    bool allowTemporalLearning = true;
-   PerformSpacialPooling(allowSpacialLearning);
+
+   IncrementCurrentColumnStateArrayPtr();
+   IncrementCurrentCellStateArrayPtr();
+
+   PerformSpatialPooling(allowSpacialLearning);
    PerformTemporalPooling(allowTemporalLearning);
 }
 
-
-#include "immintrin.h"
-
-void vRegion::PerformSpacialPooling(bool allowLearning)
-{
-   // SP1 - Overlap
-
-   __m256i* pCurrentInputPtr = (__m256i*)dpInputSpace->GetBuffer();
-   
-
-   for (int columnIndex = 0; columnIndex < dNumColumns; columnIndex++)
-   { 
-      __m256i* pCurrentProximalPermPtr = (__m256i*)GetProximalSegmentPermanenceArray(columnIndex);
-      uint8_t boost = GetColumnObject(columnIndex)->dBoost;
-
-      // int overlap = Calculate Overlap( uint8* pBuf1, uint8* pBuf1, int range, uint8 boost);
-
-      int receptiveRange = dNumColumns;
-      int subtotal = 255;
-      __m256i ymm0_threshold = _mm256_set1_epi8((char)VHTM_CONNECTED_PERMANENCE);     // Load threshold value ;
-      __m256i ymm6_overlap_total8 = _mm256_set1_epi8(0);
-      __m256i ymm9_boost = _mm256_set1_epi8((char)boost); // Load column boost value 
-      __m256i ymm10_overlap_total32 = _mm256_set1_epi32(0);
-      __m256i ymm4_overlap;
-
-      for (int synIndex = 0; synIndex < receptiveRange; synIndex++)
-      {
-         __m256i ymm1_perm = _mm256_load_si256(pCurrentProximalPermPtr);         // Load the proximal synaspe permanence values
-
-         __m256i ymm2_connected = _mm256_cmpgt_epi8(ymm0_threshold, ymm1_perm);  // Compare to get a vector of connected synapses
-
-         __m256i ymm3_input = _mm256_load_si256(pCurrentInputPtr);               // Load the input data
-
-         ymm4_overlap = _mm256_and_si256(ymm2_connected, ymm3_input);            // bitwise-AND of input and connected synapses to get overlap
-
-         // Only need to mask off active bit if buffer has values other than 0 and 1 in it
-         //uint8_t activeMask[] = { 0x01, 0x01, 0x01, 0x01 }
-         //__m256 ymm6_activemask = _mm256_broadcast_ss((float const *)activeMask); 
-         //__m256i ymm6i_activemask = _mm256_castps_si256(ymm6_activemask);
-         //__m256i ymm5_overlap = _mm256_and_si256(ymm5_overlap, ymm6i_activemask);
-
-         ymm6_overlap_total8 = _mm256_adds_epi8(ymm6_overlap_total8, ymm4_overlap);
-
-         if (subtotal == 0)
-         {
-            __m256i ymm7_one8 = _mm256_set1_epi8(1);  
-            __m256i ymm8_overlap_interm16 = _mm256_maddubs_epi16(ymm4_overlap, ymm7_one8);  // (uint8)overlap * (int8)column boost to a uint16 value, then SUM each uint16      
-            __m256i ymm9_boost = _mm256_set1_epi8((char)boost);                  // Load column boost value 
-            __m256i ymm10_overlap_interm32 = _mm256_madd_epi16(ymm8_overlap_interm16, ymm9_boost);
-            ymm10_overlap_total32 = _mm256_add_epi32(ymm10_overlap_total32, ymm10_overlap_interm32);
-            ymm6_overlap_total8 = _mm256_set1_epi8(0);
-            subtotal = 256;
-         }
-         subtotal--;
-         pCurrentProximalPermPtr += sizeof(__m256i);
-      }
-
-      if (subtotal != 255)
-      {
-         __m256i ymm7_one8 = _mm256_set1_epi8(1);
-         __m256i ymm8_overlap_interm16 = _mm256_maddubs_epi16(ymm4_overlap, ymm7_one8);  // (uint8)overlap * (int8)column boost to a uint16 value, then SUM each uint16      
-         
-         __m256i ymm10_overlap_interm32 = _mm256_madd_epi16(ymm8_overlap_interm16, ymm9_boost);
-         ymm10_overlap_total32 = _mm256_add_epi32(ymm10_overlap_total32, ymm10_overlap_interm32);
-      }
-
-      int result[256 / 32]; // TODO: May need to align
-      _mm256_store_si256((__m256i*)result, ymm10_overlap_total32);
-      int totalResult = result[0];
-      for (int i = 1; i < sizeof(__m256i); i++)
-      {
-         totalResult += result[i];
-      }      
-   }
-
-   
-
-
-
-
-
-   // SP2 - Inhibition
-
-   // SP3 - Learning
-}
 
 void vRegion::PerformTemporalPooling(bool allowLearning)
 {
@@ -239,31 +180,95 @@ int vRegion::GetTopCellIndex(int columnIndex)
    return columnIndex*dZSize; 
 }
 
-uint8_t* vRegion::GetCurrentTopCellStateArrayPtr(int columnIndex)
+void vRegion::IncrementCurrentColumnStateArrayPtr()
 {
-   _ASSERT(columnIndex <= dNumColumns);
-   int index = GetTopCellIndex(columnIndex);
-   if (dTimestep % 2)
-      return &dpCellStateArray0[index];
-   else
-      return &dpCellStateArray1[index];
+   dpCurrentTimestepColumnStateArray += dNumColumns;
+   if (dpCurrentTimestepColumnStateArray > (dpCurrentTimestepColumnStateArray + (dNumCells*dNumColumnStateTimestepsInHistory)))
+   {
+      dpCurrentTimestepColumnStateArray = dpColumnStateArray;
+   }
 }
 
-uint8_t* vRegion::GetPreviousTopCellStateArrayPtr(int columnIndex)
+uint8_t* vRegion::GetCurrentColumnStateArrayPtr(int columnIndex)
 {
    _ASSERT(columnIndex <= dNumColumns);
-   int index = GetTopCellIndex(columnIndex);
-   if (dTimestep % 2)
-      return &dpCellStateArray1[index];
-   else
-      return &dpCellStateArray0[index];
+   return &dpCurrentTimestepColumnStateArray[columnIndex];
 }
+
+uint8_t* vRegion::GetOldestColumnStateArrayPtr(int columnIndex)
+{
+   _ASSERT(columnIndex <= dNumColumns);
+   uint8_t* pOldestTimestepColumnStateArray = dpCurrentTimestepColumnStateArray + dNumColumns;
+   if (pOldestTimestepColumnStateArray > (dpColumnStateArray + dNumColumns * dNumColumnStateTimestepsInHistory))
+   {
+      pOldestTimestepColumnStateArray = dpColumnStateArray;
+   }
+   return &pOldestTimestepColumnStateArray[columnIndex];
+}
+
+uint8_t* vRegion::GetHistoricalColumnStateArrayPtr(int columnIndex, int stepsBack)
+{
+   _ASSERT(columnIndex <= dNumColumns);
+   _ASSERT(stepsBack <= dNumColumnStateTimestepsInHistory);
+
+   uint8_t* pHistoricalTimestepColumnStateArray = dpCurrentTimestepColumnStateArray - (dNumColumns * stepsBack);
+   if (pHistoricalTimestepColumnStateArray < dpColumnStateArray)
+   {
+      pHistoricalTimestepColumnStateArray = (dpColumnStateArray + dNumColumns * dNumColumnStateTimestepsInHistory) - (dpColumnStateArray - pHistoricalTimestepColumnStateArray);
+   }
+   return &pHistoricalTimestepColumnStateArray[columnIndex];
+}
+
+
+void vRegion::IncrementCurrentCellStateArrayPtr()
+{
+   dpCurrentTimestepCellStateArray += dNumCells;
+   if (dpCurrentTimestepCellStateArray > (dpCurrentTimestepCellStateArray + (dNumCells*dNumCellStateTimestepsInHistory)))
+   {
+      dpCurrentTimestepCellStateArray = dpCellStateArray;
+   }
+}
+
+
+uint8_t* vRegion::GetCurrentCellStateArrayPtr(int cellIndex)
+{
+   _ASSERT(cellIndex <= dNumCells);
+   uint8_t* pCellStateArray = dpCurrentTimestepCellStateArray;
+   return &pCellStateArray[cellIndex];
+}
+
+uint8_t* vRegion::GetOldestCellStateArrayPtr(int cellIndex)
+{
+   _ASSERT(cellIndex <= dNumCells);
+   uint8_t* pOldestTimestepCellStateArray = dpCurrentTimestepCellStateArray + dNumCells;
+   if (pOldestTimestepCellStateArray > (dpCellStateArray + dNumCells * dNumCellStateTimestepsInHistory))
+   {
+      pOldestTimestepCellStateArray = dpCellStateArray;
+   }
+   return &pOldestTimestepCellStateArray[cellIndex];
+}
+
+
+uint8_t* vRegion::GetHistoricalCellStateArrayPtr(int cellIndex, int stepsBack)
+{
+   _ASSERT(cellIndex <= dNumCells);
+   _ASSERT(stepsBack <= dNumCellStateTimestepsInHistory);
+
+   uint8_t* pHistoricalTimestepCellStateArray = dpCurrentTimestepCellStateArray - (dNumCells * stepsBack);
+   if (pHistoricalTimestepCellStateArray < dpCellStateArray)
+   {
+      pHistoricalTimestepCellStateArray = (dpCellStateArray + dNumCells * dNumCellStateTimestepsInHistory) - (dpCellStateArray - pHistoricalTimestepCellStateArray);
+   }
+   return &pHistoricalTimestepCellStateArray[cellIndex];
+}
+
 
 int8_t* vRegion::GetProximalSegmentPermanenceArray(int columnIndex)
 {
    _ASSERT(columnIndex < dNumColumns);
    return &dpProximalSegmentPermanenceArray[dpInputSpace->GetSizeX() * dpInputSpace->GetSizeY() * columnIndex];
 }
+
 
 int8_t* vRegion::GetDistalSegmentPermanenceArray(int cellIndex, int segmentIndex)
 {
