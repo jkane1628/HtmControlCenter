@@ -20,7 +20,13 @@
 
 #include <QMainWindow>
 
-#include "htm/View.h"
+#define USE_HTM_VECTOR_CLASSES 1
+
+#ifdef USE_HTM_VECTOR_CLASSES
+#define NETWORKMANAGERCLASS vNetworkManager
+#else
+#define NETWORKMANAGERCLASS NetworkManager
+#endif 
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -28,13 +34,25 @@ class QMenu;
 class QTextEdit;
 QT_END_NAMESPACE
 
+enum MouseMode;
+enum CliReturnCode;
 class BasicGraph;
 class InputspacePredictionGraph;
 class InputspaceOverlapGraph;
 class ConsoleDock;
+class ControlWidget;
+#ifdef USE_HTM_VECTOR_CLASSES
+class vView;
+class vNetworkManager;
+class vRegion;
+class vInputSpace;
+#else
 class View;
 class NetworkManager;
-class ControlWidget;
+class Region;
+class InputSpace;
+#endif
+
 
 class MainWindow : public QMainWindow
 {
@@ -45,8 +63,11 @@ public:
    void UpdateUIDataForNetworkStep(int time);
    void UpdateUIForNetworkExecution(int time);
    void UpdateUIForNetworkLoad();
+#ifdef USE_HTM_VECTOR_CLASSES
+   void UpdateUIForInfoSelection(vRegion *_region, vInputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex);
+#else
    void UpdateUIForInfoSelection(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex);
-
+#endif
 public slots:
    void cliLoadNetworkFile(QString fileName, CliReturnCode* pCliRc);
    void cliStepHtmNetwork(int numSteps, CliReturnCode* pCliRc);
@@ -78,9 +99,16 @@ private:
     QAction *quitAct;
 
     // Application Objects
+#ifdef USE_HTM_VECTOR_CLASSES
+    vNetworkManager*  dpHtmNetworkManager;
+    vView*            dpHtmView1;
+    vView*            dpHtmView2;
+#else
     NetworkManager*  dpHtmNetworkManager;
     View*            dpHtmView1;
     View*            dpHtmView2;
+#endif
+    
     ConsoleDock*     dpConsoleDock;
     InputspacePredictionGraph*   dpBasicGraph1;
     InputspaceOverlapGraph*      dpBasicGraph2;

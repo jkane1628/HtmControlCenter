@@ -12,17 +12,17 @@
 #include <QtWidgets/QMenu>
 #include <QtCore/qmath.h>
 
-
-#include "ColumnDisp.h"
-#include "Cell.h"
-#include "Segment.h"
-#include "DistalSynapse.h"
-#include "FastList.h"
 #include "controlwidget.h"
-#include "View.h"
+
+#include "vNetworkManager.h"
+#include "vInputSpace.h"
+#include "vRegion.h"
+#include "vColumnDisp.h"
+
+#include "vView.h"
 
 
-void GraphicsView::wheelEvent(QWheelEvent *e)
+void vGraphicsView::wheelEvent(QWheelEvent *e)
 {
     if (e->modifiers() & Qt::ControlModifier) {
         if (e->delta() > 0)
@@ -35,7 +35,7 @@ void GraphicsView::wheelEvent(QWheelEvent *e)
     }
 }
 
-void GraphicsView::mousePressEvent(QMouseEvent *event)
+void vGraphicsView::mousePressEvent(QMouseEvent *event)
 {
 	if (view->GetMouseMode() != MOUSE_MODE_SELECT)
 	{
@@ -48,7 +48,7 @@ void GraphicsView::mousePressEvent(QMouseEvent *event)
 	view->MousePressed(event, false);
  }
 
-void GraphicsView::mouseDoubleClickEvent(QMouseEvent *event)
+void vGraphicsView::mouseDoubleClickEvent(QMouseEvent *event)
 {
 	if (view->GetMouseMode() != MOUSE_MODE_SELECT)
 	{
@@ -61,7 +61,7 @@ void GraphicsView::mouseDoubleClickEvent(QMouseEvent *event)
 	view->MousePressed(event, true);
 }
 
-View::View(ControlWidget *_win, QWidget *parent)
+vView::vView(ControlWidget *_win, QWidget *parent)
     : QFrame(parent)
 {
 	win = _win;
@@ -73,8 +73,8 @@ View::View(ControlWidget *_win, QWidget *parent)
 	viewConnectionsIn = true;
 	viewConnectionsOut = false;
 	viewMarkedCells = false;
-	selRegion = NULL;
-	selInput = NULL;
+	dpSelRegion = NULL;
+	dpSelInput = NULL;
 	selColX = -1;
 	selColY = -1;
 	selColIndex = -1;
@@ -83,11 +83,11 @@ View::View(ControlWidget *_win, QWidget *parent)
 	columnDisps = NULL;
 	sceneWidth = -1;
 	sceneHeight = -1;
-	dataSpace = NULL;
+	dpDataSpace = NULL;
 	addingDataSpaces = false;
 
 	setFrameStyle(Sunken | StyledPanel);
-	graphicsView = new GraphicsView(this);
+	graphicsView = new vGraphicsView(this);
 	graphicsView->setRenderHint(QPainter::Antialiasing, true);
 	graphicsView->setDragMode(QGraphicsView::NoDrag);
 	graphicsView->setOptimizationFlags(QGraphicsView::DontSavePainterState);
@@ -174,12 +174,12 @@ View::View(ControlWidget *_win, QWidget *parent)
 	setupMatrix();
 }
 
-QGraphicsView *View::view() const
+QGraphicsView *vView::view() const
 {
     return static_cast<QGraphicsView *>(graphicsView);
 }
 
-QMenu *View::CreateOptionsMenu()
+QMenu *vView::CreateOptionsMenu()
 {
 	// Create the options menu
 	QMenu *menu = new QMenu("Options");
@@ -249,7 +249,7 @@ QMenu *View::CreateOptionsMenu()
 }
 
 
-void View::keyPressEvent(QKeyEvent* e)
+void vView::keyPressEvent(QKeyEvent* e)
 {
 	if (e->key() == Qt::Key_A) 
 	{
@@ -325,7 +325,7 @@ void View::keyPressEvent(QKeyEvent* e)
 };
 
 
-void View::SetMouseMode(MouseMode _mouseMode)
+void vView::SetMouseMode(MouseMode _mouseMode)
 {
 	mouseMode = _mouseMode;
 
@@ -339,7 +339,7 @@ void View::SetMouseMode(MouseMode _mouseMode)
 	}
 }
 
-void View::SetViewMode(bool _viewActivity, bool _viewReconstruction, bool _viewPrediction, bool _viewBoost, bool _viewConnectionsIn, bool _viewConnectionsOut, bool _viewMarkedCells)
+void vView::SetViewMode(bool _viewActivity, bool _viewReconstruction, bool _viewPrediction, bool _viewBoost, bool _viewConnectionsIn, bool _viewConnectionsOut, bool _viewMarkedCells)
 {
 	// If changing view mode, redraw this entire View.
 	if ((_viewActivity != viewActivity) || (_viewReconstruction != viewReconstruction) || (_viewPrediction != viewPrediction) || (_viewBoost != viewBoost) || (_viewConnectionsIn != viewConnectionsIn) || (_viewConnectionsOut != viewConnectionsOut) || (_viewMarkedCells != viewMarkedCells)) {
@@ -365,7 +365,7 @@ void View::SetViewMode(bool _viewActivity, bool _viewReconstruction, bool _viewP
 	}
 
 	// Clear all existing records of selected synapses.
-	for (std::map<ColumnDisp*,ColumnDisp*>::const_iterator col_iter = cols_with_sel_synapses.begin(), end = cols_with_sel_synapses.end(); col_iter != end; ++col_iter) {
+	for (std::map<vColumnDisp*,vColumnDisp*>::const_iterator col_iter = cols_with_sel_synapses.begin(), end = cols_with_sel_synapses.end(); col_iter != end; ++col_iter) {
 		col_iter->first->ClearSelectedSynapses();
 	}
 
@@ -374,113 +374,94 @@ void View::SetViewMode(bool _viewActivity, bool _viewReconstruction, bool _viewP
 
 	if (_viewConnectionsIn)
 	{
-		if (selRegion != NULL)
+		if (dpSelRegion != NULL)
 		{
-			Column *selCol = selRegion->GetColumn(selColX, selColY);
-			_ASSERT(selCol != NULL);
-
-			Cell *selCell;
-			Segment *seg;
-			FastListIter synapse_iter, seg_iter;
-			ProximalSynapse *pSyn;
-			DistalSynapse *dSyn;
-			int colX, colY, colIndex;
+         vColumn selCol(dpSelRegion, selColX, selColY);
+         int colX, colY;
+         int colIndex = selCol.GetColumnIndex();
 
 			// Display selected proximal synapses.
 
 			// If this View is displaying a DataSpace that is NOT the Region containing the selection...
-			if (selRegion != (Region*)dataSpace)
+			if (dpSelRegion != (vRegion*)dpDataSpace)
 			{
-				seg = selCol->ProximalSegment;
-				synapse_iter.SetList(seg->Synapses);
-				for (pSyn = (ProximalSynapse*)(synapse_iter.Reset()); pSyn != NULL; pSyn = (ProximalSynapse*)(synapse_iter.Advance()))
-				{
-					if (pSyn->InputSource == dataSpace)
-					{
-						// Record the information for the current synapse in its column's ColumnDisp.
-						colIndex = pSyn->InputPoint.X + (pSyn->InputPoint.Y * sceneWidth);
-						columnDisps[colIndex]->SelectSynapse(pSyn, pSyn->InputPoint.Index);
+            // If this region has a proximal segment that attaches to the displayed dataspace, then...
+            if (dpSelRegion->GetInputSpace() == dpDataSpace)
+            {
+               // Walk each proximal synaspe 
+               int8_t* pProximalSynaspeArray = selCol.GetProximalSegmentPermanenceArray();
+               for (int i = 0; i < dpSelRegion->GetInputSpace()->GetNumCells(); i++)
+               {
+                  // Record the information for the current synapse in its column's ColumnDisp.
+                  columnDisps[i]->SelectSynapse(0 /* This is the cell index into the col, for 2D inputs, this is zero */, pProximalSynaspeArray[i], VHTM_CONNECTED_PERMANENCE);
 
-						// Record that the current column has one or more selected synapses.
-						cols_with_sel_synapses[columnDisps[colIndex]] = columnDisps[colIndex];
-						//cols_with_sel_synapses.insert(columnDisps[colIndex],columnDisps[colIndex]);
-					}
-				}
+                  // Record that the current column has one or more selected synapses.
+                  cols_with_sel_synapses[columnDisps[colIndex]] = columnDisps[colIndex];
+               }
+            }
 			}
 
 			// Display selected distal synapses.
 
 			// If there is a selected cell and this View is displaying the Region containing the selected cell...
-			if ((selCellIndex != -1) && ((DataSpace*)selRegion == dataSpace))
+			if ((selCellIndex != -1) && ((vDataSpace*)dpSelRegion == dpDataSpace))
 			{
 				// Get a pointer to the selected cell.
-				selCell = selCol->GetCellByIndex(selCellIndex);
+				vCell selCell = selCol.GetCellByIndex(selCellIndex);
 
 				// Iterate through all of the selected cell's distal segments.
-				seg_iter.SetList(selCell->Segments);
-				int curIndex = -1;
-				for (seg = (Segment*)(seg_iter.Reset()); seg != NULL; seg = (Segment*)(seg_iter.Advance()))
-				{
-					// Increment current segment index.
-					curIndex++;
+            for (int segIndex = 0; segIndex < selCell.GetNumDistalSegments(); segIndex++)
+            {
+               // If there is a selected segment and this isn't it, skip this segment.
+               if ((selSegmentIndex != -1) && (selSegmentIndex != segIndex)) {
+                  continue;
+               }
 
-					// If there is a selected segment and this isn't it, skip this segment.
-					if ((selSegmentIndex != -1) && (selSegmentIndex != curIndex)) {
-						continue;
-					}
+               // Iterate through all synapses on the current distal segment.
+               int8_t* pDistalSegmentPermanenceArray = selCell.GetDistalSegmentPermanenceArray(segIndex);
 
-					// Iterate through all synapses on the current distal segment.
-					synapse_iter.SetList(seg->Synapses);
-					for (dSyn = (DistalSynapse*)(synapse_iter.Reset()); dSyn != NULL; dSyn = (DistalSynapse*)(synapse_iter.Advance()))
-					{
-						// Get information about this distal synapse's input cell.
-						colX = (int)(dSyn->GetInputSource()->GetColumn()->GetPosition().X);
-						colY = (int)(dSyn->GetInputSource()->GetColumn()->GetPosition().Y);
+               for (int synIndex = 0; synIndex < selCell.GetGetDistalSegmentReceptiveRange(); synIndex++)
+               {
+                  // Get information about this distal synapse's input cell.
+                  int connectedCellIndex = selCell.GetDistalSynaspeRemoteConnectionIndex(synIndex);
 
-						// Record the information for the current synapse in its column's ColumnDisp.
-						colIndex = colX + (colY * sceneWidth);
-						columnDisps[colIndex]->SelectSynapse(dSyn, dSyn->GetInputSource()->GetIndex());
+                  // Record the information for the current synapse in its column's ColumnDisp.
+                  columnDisps[colIndex]->SelectSynapse(connectedCellIndex, pDistalSegmentPermanenceArray[synIndex], VHTM_CONNECTED_PERMANENCE);
 
-						// Record that the current column has one or more selected synapses.
-						cols_with_sel_synapses[columnDisps[colIndex]] = columnDisps[colIndex];
-						//cols_with_sel_synapses.insert(columnDisps[colIndex],columnDisps[colIndex]);
-					}
-				}
+                  // Record that the current column has one or more selected synapses.
+                  cols_with_sel_synapses[columnDisps[colIndex]] = columnDisps[colIndex];
+               }
+            }
 			}
 		}
 	}
 }
 
-void View::MarkCells(MarkType _type)
+void vView::MarkCells(MarkType _type)
 {
 	// Clear the list of marked cells.
 	marked_cells.clear();
 
-	if (dataSpace == NULL) {
+	if (dpDataSpace == NULL) {
 		return;
 	}
 
 	int index;
-	int numCells = (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION) ? ((Region*)dataSpace)->GetCellsPerCol() : dataSpace->GetNumValues();
+	int numCells = dpDataSpace->GetSizeZ();
 
-	Region *region = (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION) ? ((Region*)dataSpace) : NULL;
-
-	for (int y = 0; y < sceneHeight; y++)
-	{
-		for (int x = 0; x < sceneWidth; x++)
-		{
-			for (int i = 0; i < numCells; i++)
-			{
-				if (((_type == MARK_ACTIVE) && dataSpace->GetIsActive(x, y, i)) ||
-					  ((_type == MARK_PREDICTED) && (region != NULL) && region->IsCellPredicted(x, y, i)) ||
-						((_type == MARK_LEARNING) && (region != NULL) && region->IsCellLearning(x, y, i)))
-				{
-					index = (y * sceneWidth * numCells) + (x * numCells) + i;
-					marked_cells[index] = 1;
-				}
-			}
-		}
-	}
+   for (int i = 0; i < dpDataSpace->GetNumCells(); i++)
+   {
+      if (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION)
+      {
+         vCell cell(dpSelRegion, i);
+         if (((_type == MARK_ACTIVE) && cell.IsCellActive()) ||
+            ((_type == MARK_PREDICTED) && cell.IsCellPredicted()) ||
+            ((_type == MARK_LEARNING) && cell.IsCellLearning()))
+         {
+            marked_cells[index] = 1;
+         }
+      }
+   }
 
 	if (viewMarkedCells)
 	{
@@ -489,14 +470,14 @@ void View::MarkCells(MarkType _type)
 	}
 }
 
-void View::MousePressed(QMouseEvent *event, bool doubleClick)
+void vView::MousePressed(QMouseEvent *event, bool doubleClick)
 {
 	// Do nothing if there is no Region or InputSpace being shown.
-	if (dataSpace == NULL) {
+	if (dpDataSpace == NULL) {
 		return;
 	}
 
-	if ((dataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) || (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
+	if ((dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) || (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
 	{
 		QPointF coords = graphicsView->mapToScene(event->pos());
 
@@ -504,7 +485,7 @@ void View::MousePressed(QMouseEvent *event, bool doubleClick)
 		coords.setY(coords.y() + ((float)sceneHeight) / 2.0f);
 
 		// If the mouse was pressed outside of the DataSpace, select nothing.
-		if ((dataSpace == NULL) || (coords.x() < 0.0f) || (coords.x() > sceneWidth) || (coords.y() < 0.0f) || (coords.y() > sceneHeight))
+		if ((dpDataSpace == NULL) || (coords.x() < 0.0f) || (coords.x() > sceneWidth) || (coords.y() < 0.0f) || (coords.y() > sceneHeight))
 		{
 			win->SetSelected(NULL, NULL, -1, -1, -1, -1);
 			return;
@@ -526,30 +507,32 @@ void View::MousePressed(QMouseEvent *event, bool doubleClick)
 		// Determine which specific cell (if any) is being selected. Select the whole column if doubleClick is true.
 		int cellIndex = doubleClick ? -1 : columnDisps[wholeX + (wholeY * sceneWidth)]->DetermineCellIndex(fractionalX, fractionalY);
 
-#ifndef USE_HTM_VECTOR_CLASSES
 		// Select the determined cell (if there is one) in the determined column in the DataSpace.
-		win->SetSelected((dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION) ? (Region*)dataSpace : NULL, 
-										 (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) ? (InputSpace*)dataSpace : NULL,
-										 wholeX, wholeY, cellIndex, -1);
-#endif
+		
+      // TODO: NEED TO FIX - JJK
+      
+      //win->SetSelected((dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION) ? dpSelRegion : NULL,
+		//				     (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) ? dpSelInput : NULL,
+		//								 wholeX, wholeY, cellIndex, -1);
+      SetSelected(dpSelRegion, dpSelInput, wholeX, wholeY, cellIndex, -1);
 	}
 }
 
-void View::SetSelected(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _selSegmentIndex)
+void vView::SetSelected(vRegion *_region, vInputSpace *_input, int _colX, int _colY, int _cellIndex, int _selSegmentIndex)
 {
 	if (selColIndex != -1) {
 		columnDisps[selColIndex]->SetSelection(false, -1);
 	}
 
 	// Record selection information.
-	selRegion = _region;
-	selInput = _input;
-	selColX = _colX;
+   dpSelRegion = _region;
+   dpSelInput = _input;
+   selColX = _colX;
 	selColY = _colY;
 	selCellIndex = _cellIndex;	
 	selSegmentIndex = _selSegmentIndex;
 
-	if ((dataSpace == _region) || (dataSpace == _input))
+	if ((dpDataSpace == _region) || (dpDataSpace == _input))
 	{
 		selColIndex = _colX + (_colY * sceneWidth);
 		columnDisps[selColIndex]->SetSelection((_cellIndex == -1), _cellIndex);
@@ -563,11 +546,11 @@ void View::SetSelected(Region *_region, InputSpace *_input, int _colX, int _colY
 	SetViewMode(viewActivity, viewReconstruction, viewPrediction, viewBoost, viewConnectionsIn, viewConnectionsOut, viewMarkedCells);
 }
 
-void View::UpdateForNetwork(NetworkManager *_networkManager)
+void vView::UpdateForNetwork(vNetworkManager *_networkManager)
 {
 	// Reset selection information.
-	selRegion = NULL;
-	selInput = NULL;
+	dpSelRegion = NULL;
+	dpSelInput = NULL;
 	selColX = -1;
 	selColY = -1;
 	selColIndex = -1;
@@ -583,12 +566,12 @@ void View::UpdateForNetwork(NetworkManager *_networkManager)
 	addingDataSpaces = true;
 
 	// Add the ID of each InputSpace to the showComboBox.
-	for (std::vector<InputSpace*>::const_iterator input_iter = _networkManager->inputSpaces.begin(), end = _networkManager->inputSpaces.end(); input_iter != end; ++input_iter) {
+	for (std::vector<vInputSpace*>::const_iterator input_iter = _networkManager->inputSpaces.begin(), end = _networkManager->inputSpaces.end(); input_iter != end; ++input_iter) {
 		showComboBox->addItem((*input_iter)->GetID());
 	}
 
 	// Add the ID of each Region to the showComboBox.
-	for (std::vector<Region*>::const_iterator region_iter = _networkManager->regions.begin(), end = _networkManager->regions.end(); region_iter != end; ++region_iter) {
+	for (std::vector<vRegion*>::const_iterator region_iter = _networkManager->regions.begin(), end = _networkManager->regions.end(); region_iter != end; ++region_iter) {
 		showComboBox->addItem((*region_iter)->GetID());
 	}
 
@@ -604,7 +587,7 @@ void View::UpdateForNetwork(NetworkManager *_networkManager)
 	addingDataSpaces = false;
 }
 
-void View::UpdateForExecution()
+void vView::UpdateForExecution()
 {
 	// If viewing data that needs to be re-generated for the executed step, re-apply view mode so as to update that data.
 	if (viewConnectionsIn || viewConnectionsOut || viewReconstruction || viewPrediction || viewBoost) {
@@ -615,56 +598,55 @@ void View::UpdateForExecution()
 	graphicsView->scene()->update(graphicsView->sceneRect());
 }
 
-void View::GenerateDataImage()
+void vView::GenerateDataImage()
 {
-	int i, colX, colY, cellIndex;
+	//int i, colX, colY, cellIndex;
 	float maxImageVal = 0.0f;
 	bool projectCol;
-	Region *curRegion;
-	Column *curCol;
-	Cell *curCell;
-	ProximalSynapse *pSyn;
+	vRegion *curRegion;
+	//Column *curCol;
+	//Cell *curCell;
+	//ProximalSynapse *pSyn;
 
-	if (viewBoost && (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
+	if (viewBoost && (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
 	{
-		curRegion = (Region*)dataSpace;
+      curRegion = dpSelRegion;
 
 		// For each column...
-		for (colY = 0; colY < curRegion->GetSizeY(); colY++)
+		for ( int colIndex = 0; colIndex < curRegion->GetNumColumns(); colIndex++)
 		{
-			for (colX = 0; colX < curRegion->GetSizeX(); colX++)
-			{
-				// Get a pointer to the current column.
-				curCol = curRegion->GetColumn(colX, colY);
+
+			// Get the current column.
+         vColumn curCol(dpSelRegion, colIndex);
 				
-				// Record the curColumn's Boost value in its corresponding ColumnDisp's imageVal.
-				columnDisps[colX + (colY * sceneWidth)]->imageVal = curCol->GetBoost() - 1.0f;
+			// Record the curColumn's Boost value in its corresponding ColumnDisp's imageVal.
+			columnDisps[colIndex]->imageVal = curCol.GetBoostValue() - 1.0f;
 
-				// Keep track of the maximum Boost value in the curRegion, for normaliation.
-				maxImageVal = Max(maxImageVal, curCol->GetBoost() - 1.0f);
+			// Keep track of the maximum Boost value in the curRegion, for normaliation.
+			maxImageVal = MAX(maxImageVal, curCol.GetBoostValue() - 1.0f);
 				
-				/*
-				// Record the curColumn's overlap duty cycle value in its corresponding ColumnDisp's imageVal.
-				columnDisps[colX + (colY * sceneWidth)]->imageVal = curCol->GetOverlapDutyCycle();
+			/*
+			// Record the curColumn's overlap duty cycle value in its corresponding ColumnDisp's imageVal.
+			columnDisps[colX + (colY * sceneWidth)]->imageVal = curCol->GetOverlapDutyCycle();
 
-				// Keep track of the maximum overlap duty cycle value in the curRegion, for normaliation.
-				maxImageVal = Max(maxImageVal, curCol->GetOverlapDutyCycle());
-				*/
-				/*
-				// Record the curColumn's overlap duty cycle value in its corresponding ColumnDisp's imageVal.
-				curVal = ((networkManager->GetTime() - curCol->prevBoostTime) > 10) ? 0.0f : (10.0f - (float)(networkManager->GetTime() - curCol->prevBoostTime)) / 10.0f;
-				columnDisps[colX + (colY * sceneWidth)]->imageVal = curVal;
+			// Keep track of the maximum overlap duty cycle value in the curRegion, for normaliation.
+			maxImageVal = Max(maxImageVal, curCol->GetOverlapDutyCycle());
+			*/
+			/*
+			// Record the curColumn's overlap duty cycle value in its corresponding ColumnDisp's imageVal.
+			curVal = ((networkManager->GetTime() - curCol->prevBoostTime) > 10) ? 0.0f : (10.0f - (float)(networkManager->GetTime() - curCol->prevBoostTime)) / 10.0f;
+			columnDisps[colX + (colY * sceneWidth)]->imageVal = curVal;
 
-				// Keep track of the maximum overlap duty cycle value in the curRegion, for normaliation.
-				maxImageVal = Max(maxImageVal, curVal);
-				*/
-			}
+			// Keep track of the maximum overlap duty cycle value in the curRegion, for normaliation.
+			maxImageVal = Max(maxImageVal, curVal);
+			*/
+			
 		}
 
 		if (maxImageVal > 0.0f)
 		{
 			// Normalize the imageVals of all columns, relative to maxImageVal.
-			for (i = 0; i < sceneWidth * sceneHeight; i++) 
+			for (int i = 0; i < sceneWidth * sceneHeight; i++) 
 			{
 				columnDisps[i]->imageVal = columnDisps[i]->imageVal / maxImageVal;
 			}
@@ -673,10 +655,10 @@ void View::GenerateDataImage()
 
 	if (viewReconstruction || viewPrediction)
 	{
-		int numCells = (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION) ? ((Region*)dataSpace)->GetCellsPerCol() : dataSpace->GetNumValues();
+		int numCells = dpDataSpace->GetSizeZ();
 
 		// For each column...
-		for (i = 0; i < sceneWidth * sceneHeight; i++) 
+		for (int i = 0; i < sceneWidth * sceneHeight; i++) 
 		{
 			// If this ColumnDisp doesn't yet have an imageVals array of the correct number of dimensions...
 			if (columnDisps[i]->imageValCount != numCells)
@@ -691,88 +673,79 @@ void View::GenerateDataImage()
 			}
 		
 			// Reset each cell's imageVal to 0.
-			for (cellIndex = 0; cellIndex < numCells; cellIndex++) {
+			for (int cellIndex = 0; cellIndex < numCells; cellIndex++) {
 				columnDisps[i]->imageVals[cellIndex] = 0.0f;
 			}
 		}
 
 		// Loop through each Region in the network...
-		for (std::vector<Region*>::const_iterator region_iter = networkManager->regions.begin(), end = networkManager->regions.end(); region_iter != end; ++region_iter) 
+		for (std::vector<vRegion*>::const_iterator region_iter = networkManager->regions.begin(), end = networkManager->regions.end(); region_iter != end; ++region_iter) 
 		{
-			// Loop through each input DataSpace to the current Region...
-			for (std::vector<DataSpace*>::const_iterator input_iter = (*region_iter)->InputList.begin(), end = (*region_iter)->InputList.end(); input_iter != end; ++input_iter) 
-			{
+			// Loop through each input DataSpace to the current Region...TODO: ONLY SUPPORTING ONE DATASPACE PER REGION??
+         vDataSpace* input_iter = (*region_iter)->GetInputSpace();
+
+			//for (std::vector<vDataSpace*>::const_iterator input_iter = (*region_iter)->InputList.begin(), end = (*region_iter)->InputList.end(); input_iter != end; ++input_iter) 
+			//{
 				// If the current input DataSpace is the DataSpace being displayed by this View...
-				if ((*input_iter) == dataSpace)
+				if (input_iter == dpDataSpace)
 				{
 					curRegion = (*region_iter);
 
-					for (colY = 0; colY < curRegion->GetSizeY(); colY++)
-					{
-						for (colX = 0; colX < curRegion->GetSizeX(); colX++)
+               for (int colIndex = 0; colIndex < curRegion->GetNumColumns(); colIndex++)
+               {
+
+                  // Get the current column.
+                  vColumn curCol(dpSelRegion, colIndex);
+
+						projectCol = false;
+
+						if (viewReconstruction)
 						{
-							// Get a pointer to the current column.
-							curCol = curRegion->GetColumn(colX, colY);
+							// Project this column if it is active.
+							projectCol = curCol.GetIsActive();
+						}
+						else if (viewPrediction)
+						{
+                     // Set projectCol to true if any cell in this column is predicting for the next time step (a sequence prediction).
+                     projectCol = curCol.GetIsAnyCellPredicting(1);
+						}
 
-							projectCol = false;
+						if (projectCol)
+						{
 
-							if (viewReconstruction)
-							{
-								// Project this column if it is active.
-								projectCol = curCol->GetIsActive();
-							}
-							else if (viewPrediction)
-							{
-								// Set projectCol to true if any cell in this column is predicting for the next time step (a sequence prediction).
-								for (cellIndex = 0; cellIndex < curRegion->GetCellsPerCol(); cellIndex++)
-								{
-									curCell = curCol->Cells[cellIndex];
 
-									if (curCell->GetIsPredicting() && (curCell->GetNumPredictionSteps() == 1))
-									{
-										projectCol = true;
-										break;
-									}
-								}
-							}
+                     // If this region has a proximal segment that attaches to the displayed dataspace, then...
+                     if (dpSelRegion->GetInputSpace() == dpDataSpace)
+                     {
+                        // Walk each proximal synaspe 
+                        int8_t* pProximalSynaspeArray = curCol.GetProximalSegmentPermanenceArray();
+                        for (int i = 0; i < dpSelRegion->GetInputSpace()->GetNumCells(); i++)
+                        {
+                           // Add the current synapse's permanence to the imageVal corresponding to the cell in the DataSpace being
+                           // displayed by this view, that the Synapse connects from.
+                           columnDisps[i]->imageVals[colIndex] += pProximalSynaspeArray[i];
 
-							if (projectCol)
-							{
-								// Iterate through all proximal synapses of this column that's being projected...
-								FastListIter synapses_iter(curCol->ProximalSegment->Synapses);
-								for (Synapse *syn = (Synapse*)(synapses_iter.Reset()); syn != NULL; syn = (Synapse*)(synapses_iter.Advance()))
-								{
-									pSyn = (ProximalSynapse*)syn;
-
-									// If the current proximal synapse connects from the DataSpace being displayed in this view...
-									if (pSyn->InputSource == dataSpace) 
-									{
-										// Add the current synapse's ermanence to the imageVal corresponding to the cell in the DataSpace being
-										// displayed by this view, that the Synapse connects from.
-										columnDisps[pSyn->InputPoint.X + (pSyn->InputPoint.Y * sceneWidth)]->imageVals[pSyn->InputPoint.Index] += pSyn->GetPermanence();
-
-										// Record the maximum imageVal among all cells, to use later for normalization.
-										maxImageVal = Max(maxImageVal, columnDisps[pSyn->InputPoint.X + (pSyn->InputPoint.Y * sceneWidth)]->imageVals[pSyn->InputPoint.Index]);
-									}
-								}
-							}
+                           // Record the maximum imageVal among all cells, to use later for normalization.
+                           maxImageVal = MAX(maxImageVal, columnDisps[i]->imageVals[colIndex]);
+                        }
+                     }
 						}
 					}
 
 					// Exit input DataSpace iteration loop.
 					break;
 				}
-			}
+			//}
 		}
 
 		// Normalize all imageVals...
 		if (maxImageVal > 0.0f)
 		{
 			// For each column...
-			for (i = 0; i < sceneWidth * sceneHeight; i++) 
+			for (int i = 0; i < sceneWidth * sceneHeight; i++) 
 			{
 				// Normalize each cell's imageVal, proportional to maxImageVal.
-				for (cellIndex = 0; cellIndex < numCells; cellIndex++) 
+				for (int cellIndex = 0; cellIndex < numCells; cellIndex++)
 				{
 					columnDisps[i]->imageVals[cellIndex] = columnDisps[i]->imageVals[cellIndex] / maxImageVal;
 
@@ -784,7 +757,7 @@ void View::GenerateDataImage()
 	}
 }
 
-void View::setupMatrix()
+void vView::setupMatrix()
 {
     qreal scale = qPow(qreal(2), (zoomSlider->value() - 250) / qreal(50));
 
@@ -796,7 +769,7 @@ void View::setupMatrix()
 }
 
 
-void View::ViewMode_Activity()
+void vView::ViewMode_Activity()
 {
 	if (viewReconstructionAct->isChecked()) {
 		viewReconstructionAct->setChecked(false);
@@ -809,7 +782,7 @@ void View::ViewMode_Activity()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_Reconstruction()
+void vView::ViewMode_Reconstruction()
 {
 	if (viewActivityAct->isChecked()) {
 		viewActivityAct->setChecked(false);
@@ -822,7 +795,7 @@ void View::ViewMode_Reconstruction()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_Prediction()
+void vView::ViewMode_Prediction()
 {
 	if (viewReconstructionAct->isChecked()) {
 		viewReconstructionAct->setChecked(false);
@@ -835,12 +808,12 @@ void View::ViewMode_Prediction()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_Boost()
+void vView::ViewMode_Boost()
 {
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_ConnectionsIn()
+void vView::ViewMode_ConnectionsIn()
 {
 	if (viewConnectionsInAct->isChecked()) 
 	{
@@ -851,7 +824,7 @@ void View::ViewMode_ConnectionsIn()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_ConnectionsOut()
+void vView::ViewMode_ConnectionsOut()
 {
 	if (viewConnectionsOutAct->isChecked()) 
 	{
@@ -862,7 +835,7 @@ void View::ViewMode_ConnectionsOut()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::ViewMode_MarkedCells()
+void vView::ViewMode_MarkedCells()
 {
 	if (viewMarkedCellsAct->isChecked()) 
 	{
@@ -873,35 +846,35 @@ void View::ViewMode_MarkedCells()
 	SetViewMode(viewActivityAct->isChecked(), viewReconstructionAct->isChecked(), viewPredictionAct->isChecked(), viewBoostAct->isChecked(), viewConnectionsInAct->isChecked(), viewConnectionsOutAct->isChecked(), viewMarkedCellsAct->isChecked());
 }
 
-void View::View_MarkActiveCells()
+void vView::View_MarkActiveCells()
 {
 	MarkCells(MARK_ACTIVE);
 }
 
-void View::View_MarkPredictedCells()
+void vView::View_MarkPredictedCells()
 {
 	MarkCells(MARK_PREDICTED);
 }
 
-void View::View_MarkLearningCells()
+void vView::View_MarkLearningCells()
 {
 	MarkCells(MARK_LEARNING);
 }
 
-void View::zoomIn(int level)
+void vView::zoomIn(int level)
 {
     zoomSlider->setValue(zoomSlider->value() + level);
 }
 
-void View::zoomOut(int level)
+void vView::zoomOut(int level)
 {
     zoomSlider->setValue(zoomSlider->value() - level);
 }
 
-void View::ShowDataSpace(const QString &_id)
+void vView::ShowDataSpace(const QString &_id)
 {
 	int x, y;
-	ColumnDisp *curColumnDisp;
+	vColumnDisp *curColumnDisp;
 
 	// Ignore if currently in the process of adding DataSpaces.
 	if (addingDataSpaces) {
@@ -909,7 +882,7 @@ void View::ShowDataSpace(const QString &_id)
 	}
 
 	// Get pointer to DataSpace with given ID.
-	dataSpace = networkManager->GetDataSpace(_id);
+	dpDataSpace = networkManager->GetDataSpace(_id);
 
 	// Clear the scene.
 	scene->clear();
@@ -926,33 +899,34 @@ void View::ShowDataSpace(const QString &_id)
 	cols_with_sel_synapses.clear();
 
 	// If there is no DataSpace, do nothing more.
-	if (dataSpace == NULL) {
+	if (dpDataSpace == NULL) {
 		return;
 	}
 
-	if ((dataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) || (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
+	if ((dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_INPUTSPACE) || (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_REGION))
 	{
 		// Record dimensions of new scene
-		sceneWidth = dataSpace->GetSizeX();
-		sceneHeight = dataSpace->GetSizeY();
+		sceneWidth = dpDataSpace->GetSizeX();
+		sceneHeight = dpDataSpace->GetSizeY();
 
 		float xOrigin = 0 - ((float)sceneWidth / 2.0f);
 		float yOrigin = 0 - ((float)sceneHeight / 2.0f);
 
 		// Fill the scene with ColumnDisp objects representing each column in the dataSpace.
-		columnDisps = new ColumnDisp*[sceneWidth * sceneHeight];
+		columnDisps = new vColumnDisp*[sceneWidth * sceneHeight];
 		for (x = 0; x < sceneWidth; x++)
 		{
 			for (y = 0; y < sceneHeight; y++)
 			{
-				columnDisps[(y * sceneWidth) + x] = curColumnDisp = new ColumnDisp(this, dataSpace, x, y);
+				columnDisps[(y * sceneWidth) + x] = curColumnDisp = new vColumnDisp(this, dpDataSpace, x, y);
 				curColumnDisp->setPos(QPointF(x + xOrigin, y + yOrigin));
 				scene->addItem(curColumnDisp);
 			}
 		}
 
+      /*
 		// Determine the dataSpace's hypercolumn diameter.
-		int hypercolumnDiameter = dataSpace->GetHypercolumnDiameter();
+		int hypercolumnDiameter = dpDataSpace->GetHypercolumnDiameter();
 
 		// If HypercolumnDiameter > 1, display hypercolumn divisions.
 		if (hypercolumnDiameter > 1)
@@ -966,14 +940,14 @@ void View::ShowDataSpace(const QString &_id)
 			for (y = 0; y <= sceneHeight; y += hypercolumnDiameter) {
 				scene->addLine(0 + xOrigin, y + yOrigin, sceneWidth + xOrigin, y + yOrigin, boundaryPen);
 			}
-		}
+		}*/
 	}
-	else if (dataSpace->GetDataSpaceType() == DATASPACE_TYPE_CLASSIFIER)
+	else if (dpDataSpace->GetDataSpaceType() == DATASPACE_TYPE_CLASSIFIER)
 	{
 	}
 
 	// Re-apply selection information.
-	SetSelected(selRegion, selInput, selColX, selColY, selCellIndex, selSegmentIndex);
+	SetSelected(dpSelRegion, dpSelInput, selColX, selColY, selCellIndex, selSegmentIndex);
 
 	// Clear the list of marked cells.
 	marked_cells.clear();

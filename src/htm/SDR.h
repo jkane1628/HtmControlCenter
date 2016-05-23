@@ -1,6 +1,6 @@
 #pragma once
 
-
+class vInputSpace;
 
 
 /// A data structure representing a single context sensitive cell.
@@ -8,6 +8,7 @@ class SDR
 {
 public:
    SDR(int xSize, int ySize, int active_cells, int active_range, float min_value, float max_value);
+   SDR(vInputSpace* pCompatibleInputSpace);
    ~SDR();
 
    void  GenerateSDR(int* pData, float value);
@@ -85,6 +86,11 @@ public:
    }
    SDR_Float(SDR* pSDR)
       : SDR(pSDR->dxSize, pSDR->dySize, pSDR->dActiveCells, pSDR->dActiveRange, pSDR->dMinValue, pSDR->dMaxValue)
+   {
+      dpData = new float[dxSize*dySize];
+   }
+   SDR_Float(vInputSpace* pCompatibleInputSpace)
+      : SDR(pCompatibleInputSpace)
    {
       dpData = new float[dxSize*dySize];
    }

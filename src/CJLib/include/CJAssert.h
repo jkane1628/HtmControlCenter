@@ -5,7 +5,7 @@
 #define __CJASSERT_H_
 
 #include "CJTypes.h"
-#include "CJCli.h"
+#include "CJTrace.h"
 
 
 #ifdef CJWINDOWS

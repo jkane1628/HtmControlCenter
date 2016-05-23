@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!--
+Boosting takes place during times 1-1000. Run until time ~1100 to allow temporal pooler to complete learning.
+-->
+<NetConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	
+	<InputSpace id="Input1">
+		<SizeX>12</SizeX>
+		<SizeY>12</SizeY>
+    <Encoder type="value" range="40" active="20" min_value="0" max_value="100"></Encoder>
+    <Pattern type="encodedsequence" start="1" end="1000000" values="0,10,20,30,40,50,60,70,80,90,100"></Pattern>
+	</InputSpace>
+  
+  
+  <Classifier id="InputClassifier" inputspace="Input1" region="Region1" numitems="100"></Classifier>
+  
+  
+	<Region id="Region1">
+       
+    <!--
+    regionsize = eRegionSize_4x4x4 = 1, eRegionSize_16x16x8 = 2, eRegionSize_32x32x4 = 3
+    --> 
+		<RegionSize>2</RegionSize>
+		
+    
+		<SPboost max="10" min="0" increment="1"></SPboost>
+		<SPinhibition distance="64"></SPinhibition>
+		<SPnooverlap minthreshold="5" permanenceincrement="5"></SPnooverlap>
+   
+		<Inputs>
+			<Input id="Input1"></Input>
+		</Inputs>
+	</Region>
+</NetConfig>

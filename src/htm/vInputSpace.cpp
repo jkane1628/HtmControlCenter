@@ -2,22 +2,50 @@
 #include "crtdbg.h"
 #include "malloc.h"
 #include "CJTypes.h"
+#include "CJTrace.h"
+#include "Pattern.h"
 #include "vInputSpace.h"
 
 #define VHTM_MEMORY_ALIGNMENT_VALUE 32  // TODO: SHOULD BE COMMON WITH VALUE IN vRegion.h
 
-vInputSpace::vInputSpace(int sizeX, int sizeY)
+vInputSpace::vInputSpace(QString id, int sizeX, int sizeY, int sizeZ)
 :
-dSizeX(sizeX),
-dSizeY(sizeY)
+vDataSpace(id),
+dpActivePattern(NULL),
+dpBuffer(NULL)
 {
-   dNumCells = sizeX * sizeY;
-   dpBuffer = (uint8_t*)_aligned_malloc(sizeX*sizeY, VHTM_MEMORY_ALIGNMENT_VALUE);
+   dMaxPosition.x = sizeX;
+   dMaxPosition.y = sizeY;
+   dMaxPosition.z = sizeZ;
 }
 
 vInputSpace::~vInputSpace(void)
 {
-   free(dpBuffer);
+   if(dpBuffer) _aligned_free(dpBuffer);
+   if(dpActivePattern) delete dpActivePattern;
+}
+
+uint8_t* vInputSpace::CreateBuffer()
+{
+   int memSize = dMaxPosition.x * dMaxPosition.y * dMaxPosition.z;
+   if (memSize > 0)
+   {
+      dpBuffer = (uint8_t*)_aligned_malloc(memSize, VHTM_MEMORY_ALIGNMENT_VALUE);
+      if (dpBuffer == NULL)
+      {
+         CJTRACE(TRACE_ERROR_LEVEL, "Failed to alloc input buffer memory.  %d bytes, id=%s", memSize, this->GetID().toStdString().c_str());
+         return NULL;
+      }      
+   }
+   memset(dpBuffer, 0, memSize);
+   CJTRACE(TRACE_HIGH_LEVEL, "Input buffer created.  %d bytes, id=%s", memSize, this->GetID().toStdString().c_str());
+   return dpBuffer;
+}
+
+void vInputSpace::Step(int time)
+{
+   if(dpActivePattern)
+      dpActivePattern->ApplyPattern(time);
 }
 
 void vInputSpace::SetupEncoder(int active_cells, int active_range, float min_value, float max_value)
@@ -62,8 +90,10 @@ float vInputSpace::EncodeSDR(float value)
 {
    _ASSERT((value >= dMinValue) && (value <= dMaxValue));
 
-   int adjusted_value = ((value - dMinValue) / dResolutionMin);
+   dCurrentInputValue = value;
 
+   int adjusted_value = ((value - dMinValue) / dResolutionMin);
+   
    // Check to make sure this isn't the max value TODO: COULD REMOVE THIS IF RESOLUTION WAS LOWER
    if (value == dMaxValue) adjusted_value--;
 
@@ -86,11 +116,12 @@ float vInputSpace::EncodeSDR(float value)
    return adjusted_value * dResolutionMin;
 }
 
-bool vInputSpace::GetIsActive(int x, int y)
+bool vInputSpace::GetIsActive(int x, int y, int z)
 {
-   _ASSERT((x >= 0) && (x < dSizeX));
-   _ASSERT((y >= 0) && (y < dSizeY));
-   return dpBuffer[y*dSizeX + x];
+   _ASSERT((x >= 0) && (x < GetSizeX()));
+   _ASSERT((y >= 0) && (y < GetSizeY()));
+   _ASSERT((z >= 0) && (z < GetSizeZ()));
+   return dpBuffer[GetIndex(x,y,z)];
 }
 
 bool vInputSpace::GetIsActive(int index)
@@ -99,11 +130,12 @@ bool vInputSpace::GetIsActive(int index)
    return dpBuffer[index];
 }
 
-void vInputSpace::SetIsActive(int x, int y, bool active)
+void vInputSpace::SetIsActive(int x, int y, int z, bool active)
 {
-   _ASSERT((x >= 0) && (x < dSizeX));
-   _ASSERT((y >= 0) && (y < dSizeY));
-   dpBuffer[y*dSizeX + x] = active;
+   _ASSERT((x >= 0) && (x < GetSizeX()));
+   _ASSERT((y >= 0) && (y < GetSizeY()));
+   _ASSERT((z >= 0) && (z < GetSizeZ()));
+   dpBuffer[GetIndex(x, y, z)] = active;
 }
 
 void vInputSpace::SetIsActive(int index, bool active)

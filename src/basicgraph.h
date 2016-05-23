@@ -3,6 +3,7 @@
 
 #include <QFrame>
 #include <QWidget>
+#include "mainwindow.h"
 #include "ui_BasicGraph.h"
 
 class CJCli;
@@ -19,9 +20,15 @@ struct TimeSeriesData
    QVector<double> pData;
 };
 
+#ifdef USE_HTM_VECTOR_CLASSES
+class vNetworkManager;
+class vInputSpace;
+class vClassifier;
+#else
 class NetworkManager;
 class InputSpace;
 class Classifier;
+#endif
 
 class BasicGraph : public QFrame
 {
@@ -55,7 +62,11 @@ class InputspacePredictionGraph : public BasicGraph
 {
 public:
 
+#ifdef USE_HTM_VECTOR_CLASSES
+   InputspacePredictionGraph(QWidget *parent, vNetworkManager* pNetworkManager);
+#else
    InputspacePredictionGraph(QWidget *parent, NetworkManager* pNetworkManager);
+#endif
    ~InputspacePredictionGraph() {}
 
    void InitializeGraph();
@@ -63,9 +74,16 @@ public:
    void ReplotGraph();
 
 private:
+#ifdef USE_HTM_VECTOR_CLASSES
+   vNetworkManager* dpNetworkManager;
+   vInputSpace* dpInputSpace;
+   vClassifier* dpClassifier;
+#else
    NetworkManager* dpNetworkManager;
    InputSpace* dpInputSpace;
    Classifier* dpClassifier;
+#endif
+   
 
 };
 
@@ -73,7 +91,11 @@ class InputspaceOverlapGraph : public BasicGraph
 {
 public:
 
+#ifdef USE_HTM_VECTOR_CLASSES
+   InputspaceOverlapGraph(QWidget *parent, vNetworkManager* pNetworkManager);
+#else
    InputspaceOverlapGraph(QWidget *parent, NetworkManager* pNetworkManager);
+#endif
    ~InputspaceOverlapGraph() {}
 
    void InitializeGraph();
@@ -81,9 +103,16 @@ public:
    void ReplotGraph();
 
 private:
+#ifdef USE_HTM_VECTOR_CLASSES
+   vNetworkManager* dpNetworkManager;
+   vInputSpace* dpInputSpace;
+   vClassifier* dpClassifier;
+#else
    NetworkManager* dpNetworkManager;
    InputSpace* dpInputSpace;
    Classifier* dpClassifier;
+#endif
+   
 
    QCustomPlot* dpPlot;
    QCPBars *dpBarsOverlap;

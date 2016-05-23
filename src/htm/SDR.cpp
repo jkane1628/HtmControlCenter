@@ -2,6 +2,7 @@
 #include "CJTypes.h"
 #include "DataSpace.h"
 #include "InputSpace.h"
+#include "vInputSpace.h"
 
 #include "SDR.h"
 
@@ -22,6 +23,16 @@ dMaxValue(max_value)
       dMaxValue = dResolution_steps;
    }
 }
+
+SDR::SDR(vInputSpace* pCompatibleInputSpace)
+   :
+   SDR(pCompatibleInputSpace->GetSizeX(),
+      pCompatibleInputSpace->GetSizeY(),
+      pCompatibleInputSpace->GetEncoderActiveCells(),
+      pCompatibleInputSpace->GetEncoderActiveRange(),
+      pCompatibleInputSpace->GetEncoderMinValue(),
+      pCompatibleInputSpace->GetEncoderMaxValue())
+{}
 
 SDR::~SDR() {}
 

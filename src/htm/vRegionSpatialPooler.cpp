@@ -2,6 +2,7 @@
 #include "stdint.h"
 #include "immintrin.h"
 #include "malloc.h"
+#include "CJAssert.h"
 
 #include "vInputSpace.h"
 #include "vRegion.h"
@@ -9,193 +10,246 @@
 
 void vRegion::PerformSpatialPooling(bool allowLearning)
 {
+   return;
+
+
    // SP1 - Compute Input Overlap
+   int insertTotalMask = 0x80;
+   __m256i ymm12_output_total32 = _mm256_set1_epi32(0);
 
+   __m256i  ymm15_column_states;
    __m256i* pCurrentInputPtr = (__m256i*)dpInputSpace->GetBuffer();
-   int* pColumnActivationTotalArray = (int*)_aligned_malloc(dNumColumns*sizeof(int), VHTM_MEMORY_ALIGNMENT_VALUE);
-
+   
    for (int columnIndex = 0; columnIndex < dNumColumns; columnIndex++)
    { 
       __m256i* pCurrentProximalPermPtr = (__m256i*)GetProximalSegmentPermanenceArray(columnIndex);
-      int receptiveRange = dpInputSpace->GetSizeX() * dpInputSpace->GetSizeY();
-
-      // int overlap = Calculate Overlap( uint8* pBuf1, uint8* pBuf1, int range, uint8 boost);
-
+      int receptiveRange = dpInputSpace->GetSizeX() * dpInputSpace->GetSizeY();       // Each column will be able to see the full input space
       int subtotal = 255;
-      __m256i ymm0_threshold = _mm256_set1_epi8((char)VHTM_CONNECTED_PERMANENCE);     // Load threshold value ;
+
+      __m256i ymm0_threshold = _mm256_set1_epi8((char)VHTM_CONNECTED_PERMANENCE);     // Load threshold value
       __m256i ymm6_overlap_total8 = _mm256_set1_epi8(0);
-      __m256i ymm7_one8 = _mm256_set1_epi8(1);
-      __m256i ymm9_boost = _mm256_set1_epi8((char)0);// GetColumnObject(columnIndex)->dBoost); // Load column boost value (optional)
       __m256i ymm10_overlap_total32 = _mm256_set1_epi32(0);
-      __m256i ymm4_overlap;
+      
 
       for (int synIndex = 0; synIndex < receptiveRange; synIndex++)
       {
          __m256i ymm1_perm = _mm256_load_si256(pCurrentProximalPermPtr);         // Load the proximal synaspe permanence values
 
-         __m256i ymm2_connected = _mm256_cmpgt_epi8(ymm0_threshold, ymm1_perm);  // Compare to get a vector of connected synapses
+         __m256i ymm2_connected = _mm256_cmpgt_epi8(ymm1_perm, ymm0_threshold);  // Compare to get a vector of connected synapses
 
          __m256i ymm3_input = _mm256_load_si256(pCurrentInputPtr);               // Load the input data
 
-         ymm4_overlap = _mm256_and_si256(ymm2_connected, ymm3_input);            // bitwise-AND of input and connected synapses to get overlap
+         __m256i ymm4_overlap = _mm256_and_si256(ymm2_connected, ymm3_input);    // bitwise-AND of input and connected synapses to get overlap
 
-         // Only need to mask off active bit if buffer has values other than 0 and 1 in it
+         ymm4_overlap = _mm256_and_si256(ymm4_overlap, _mm256_set1_epi8(1));     // Only need to mask off active bit if buffer has values other than 0 and 1 in it
+         
+         ymm6_overlap_total8 = _mm256_adds_epu8(ymm6_overlap_total8, ymm4_overlap); // Sum up all the overlapping columns in to 8-bit totals
 
-         ymm6_overlap_total8 = _mm256_adds_epu8(ymm6_overlap_total8, ymm4_overlap);
-
-         if (subtotal == 0)
+         // Move the 8-bit totals to 32-bit totals every 255 times through loop, or if this is the last loop
+         if (subtotal == 0 || (synIndex == (receptiveRange - 1)))
          {              
-            __m256i ymm8_overlap_interm16 = _mm256_maddubs_epi16(ymm4_overlap, ymm7_one8);            // (uint8)overlap * (int8)column boost to a uint16 value, then SUM each uint16      
-            __m256i ymm10_overlap_interm32 = _mm256_madd_epi16(ymm8_overlap_interm16, ymm9_boost);    // Mult the boost in and hadd u16s to u32s
-            ymm10_overlap_total32 = _mm256_add_epi32(ymm10_overlap_total32, ymm10_overlap_interm32);  // Add the u32 intermediate totals to overall totals
-            ymm6_overlap_total8 = _mm256_set1_epi8(0);                                                // Clear the intermediate 8bit totals
+            __m256i ymm8_overlap_interm16 = _mm256_maddubs_epi16(ymm4_overlap, _mm256_set1_epi8(1));           // (uint8)overlap * 1 to a uint16 value, then SUM each uint16      
+            __m256i ymm10_overlap_interm32 = _mm256_madd_epi16(ymm8_overlap_interm16, _mm256_set1_epi8(1));    // Optionally multiply in the boost and hadd u16s to u32s (not using boost here because overlap stats want unboosted values)
+            ymm10_overlap_total32 = _mm256_add_epi32(ymm10_overlap_total32, ymm10_overlap_interm32);           // Add the u32 intermediate totals to overall totals
+            ymm6_overlap_total8 = _mm256_set1_epi8(0);                                                         // Clear the intermediate 8bit totals
             subtotal = 256;
          }
          subtotal--;
          pCurrentProximalPermPtr += sizeof(__m256i);
+         pCurrentInputPtr += sizeof(__m256i);
       }
 
-
-      if (subtotal != 255)
-      {
-         __m256i ymm8_overlap_interm16 = _mm256_maddubs_epi16(ymm4_overlap, ymm7_one8);  // (uint8)overlap * (int8)column boost to a uint16 value, then SUM each uint16      
-         __m256i ymm10_overlap_interm32 = _mm256_madd_epi16(ymm8_overlap_interm16, ymm9_boost);
-         ymm10_overlap_total32 = _mm256_add_epi32(ymm10_overlap_total32, ymm10_overlap_interm32);
-      }
-
+      // Sum up the 32-bit counts in the total32 vector
       __m256i ymm11_zero = _mm256_set1_epi32(0);
       ymm10_overlap_total32 = _mm256_hadd_epi32(ymm10_overlap_total32, ymm11_zero);
 	   ymm10_overlap_total32 = _mm256_hadd_epi32(ymm10_overlap_total32, ymm11_zero);
 	   ymm10_overlap_total32 = _mm256_hadd_epi32(ymm10_overlap_total32, ymm11_zero);
 	   ymm10_overlap_total32 = _mm256_hadd_epi32(ymm10_overlap_total32, ymm11_zero);
-	  
+      
+      // Broadcast the final total to all values in the vector, now it can be used for blend
       __m128i ymm10_overlap_total32_casted = _mm256_castsi256_si128(ymm10_overlap_total32);
       ymm10_overlap_total32 = _mm256_broadcastd_epi32(ymm10_overlap_total32_casted);
-
-      int insertTotalMask = 0x80;
-
-      __m256i ymm12_output_total32 = _mm256_blend_epi32(ymm12_output_total32, ymm10_overlap_total32, insertTotalMask);
-      insertTotalMask = insertTotalMask >> 1;
-      
-      if (insertTotalMask == 0)  // Loop assumes that dNumCols always a multiple of 8 (since 8 values fit in a 256 and none spill over to a non-filled vector)
+      switch (columnIndex % 8)
       {
-         // Filter out the values below the overlap minimum, increment the overlap statistic totals with the values that are higher than the min
-         __m256i ymm13_overlap_min = _mm256_set1_epi32(VHTM_MIN_OVERLAP_THRESHOLD_DEFAULT);
+      case 0:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x80); break;
+      case 1:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x40); break;
+      case 2:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x20); break;
+      case 3:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x10); break;
+      case 4:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x08); break;
+      case 5:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x04); break;
+      case 6:  ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x02); break;
+      case 7:
+      {
+         ymm12_output_total32 = _mm256_blend_epi32(_mm256_set1_epi32(0), ymm10_overlap_total32, 0x01);
+
+         // Loop assumes that dNumCols always a multiple of 32 (since 32 8bit values fit in a 256 and none spill over to a non-filled vector)
+
+         // Filter out the values below the overlap minimum
+         __m256i ymm13_overlap_min = _mm256_set1_epi32(dSpatialPoolerConfig.noOverlapThresholdMin);
          __m256i ymm14_overlap_min_mask = _mm256_cmpgt_epi32(ymm12_output_total32, ymm13_overlap_min);
          ymm12_output_total32 = _mm256_and_si256(ymm12_output_total32, ymm14_overlap_min_mask);
 
+         // Update the column overlap duty cycle totals
+         __m256i ymm17_overlap_dc_totals = _mm256_load_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex]);
+         ymm17_overlap_dc_totals = _mm256_add_epi32(ymm17_overlap_dc_totals, _mm256_mullo_epi32(ymm14_overlap_min_mask, _mm256_set1_epi32(-1)));
+
+         // Subtract the oldest duty cycle entries from the column state history
+         uint8_t* pOldestColumnStateArray = GetOldestColumnStateArrayPtr(columnIndex);
+         __m256i ymm18_overlap_dc_oldest = _mm256_set_epi32(pOldestColumnStateArray[0] && eColumnState_Overlapped, pOldestColumnStateArray[1] && eColumnState_Overlapped,
+            pOldestColumnStateArray[2] && eColumnState_Overlapped, pOldestColumnStateArray[3] && eColumnState_Overlapped,
+            pOldestColumnStateArray[4] && eColumnState_Overlapped, pOldestColumnStateArray[5] && eColumnState_Overlapped,
+            pOldestColumnStateArray[6] && eColumnState_Overlapped, pOldestColumnStateArray[7] && eColumnState_Overlapped);
+         ymm17_overlap_dc_totals = _mm256_sub_epi32(ymm17_overlap_dc_totals, ymm18_overlap_dc_oldest);
+
+         // Store off the new overlap duty cycle values
+         _mm256_stream_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex], ymm17_overlap_dc_totals);
+
+         // Press the 32bit mask values to 8 bit values so they can be stored in the column state flags
+         switch (columnIndex % 32)
+         {
+         case 7:  ymm15_column_states = _mm256_shuffle_epi8(ymm14_overlap_min_mask, _mm256_set_epi32(0x00000000, 0x01010101, 0x02020202, 0x03030303, 0x00000000, 0x01010101, 0x02020202, 0x03030303)); break;
+         case 15: ymm15_column_states = _mm256_shuffle_epi8(ymm14_overlap_min_mask, _mm256_set_epi32(0x04040404, 0x05050505, 0x06060606, 0x07070707, 0x04040404, 0x05050505, 0x06060606, 0x07070707)); break;
+         case 23: ymm15_column_states = _mm256_shuffle_epi8(ymm14_overlap_min_mask, _mm256_set_epi32(0x08080808, 0x09090909, 0x0A0A0A0A, 0x0B0B0B0B, 0x08080808, 0x09090909, 0x0A0A0A0A, 0x0B0B0B0B)); break;
+         case 31: ymm15_column_states = _mm256_shuffle_epi8(ymm14_overlap_min_mask, _mm256_set_epi32(0x0C0C0C0C, 0x0D0D0D0D, 0x0E0E0E0E, 0x0F0F0F0F, 0x0C0C0C0C, 0x0D0D0D0D, 0x0E0E0E0E, 0x0F0F0F0F));
+
+            // Store the column state flags for columns that had activation higher than the current minimum
+            ymm15_column_states = _mm256_permutevar8x32_epi32(ymm15_column_states, _mm256_set_epi32(0, 2, 4, 6, 1, 3, 5, 7));
+            ymm15_column_states = _mm256_mullo_epi32(ymm15_column_states, _mm256_set1_epi32(-eColumnState_Overlapped));
+            _mm256_stream_si256((__m256i*)GetCurrentColumnStateArrayPtr(columnIndex - 31), ymm15_column_states);
+            break;
+
+         default:
+            // Do nothing in these cases
+            break;
+         }
+
          // Multiply in the boost values, store the results in the totals array for SP2
          __m256i ymm16_boosted = _mm256_load_si256((__m256i*)&dpColumnBoostArray[columnIndex]);
-         ymm16_boosted = _mm256_mul_epu32(ymm16_boosted, ymm12_output_total32);
-         _mm256_stream_si256((__m256i*)&pColumnActivationTotalArray[columnIndex], ymm16_boosted);
+         ymm16_boosted = _mm256_mullo_epi32(ymm16_boosted, ymm12_output_total32);
+         _mm256_stream_si256((__m256i*)&dpColumnActivationTotalArray[columnIndex], ymm16_boosted);
 
-         // Update the overlap duty cycle counts
-         __m256i ymm15_overlap_dc_totals = _mm256_load_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex]);
-
-         // TODO: NEED TO ADD THE MIN_MASK, THEN SUBTRACT THE OLDEST FROM THE TOTALS USING STATE FLAGS...THEN DO SAME FOR ACTIVE DUTY CYCLE
-
-         ymm15_overlap_dc_totals = _mm256_sub_epi32(ymm15_overlap_dc_totals, ymm14_overlap_min_mask);
-         _mm256_stream_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex], ymm15_overlap_dc_totals);
-
-         insertTotalMask = 0x80;
+      }
+      default: break;
       }
    }
 
 
    // SP2 - Compute Active Columns After Inhibition (Is column activation within kth highest across inhibition distance)
    
-   __m256i ymm0_desired_active = _mm256_set1_epi32(dDesiredNumActiveColumns);
-   __m256i ymm4_32_to_8 = _mm256_set_epi8(0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-   __m256i ymm5_64_mask = _mm256_set_epi32(0xFF, 0xFF, 0, 0, 0, 0, 0, 0);
+   __m256i ymm0_desired_active = _mm256_set1_epi32(dSpatialPoolerConfig.desiredNumActiveColumns);
+   __m256i ymm5_column_states;
 
-
-   // Shift total activations across each other while comparing
-   int startInhibitionRangeColumnIndex = dNumColumns - dInhibitionDistance/2;
-   int currentInhibitionRangeColumnIndex;
-   uint8_t* pCurrentColumnStateArrayPtr = GetCurrentColumnStateArrayPtr(0);
+   // Shift total activations across each other while comparing to get maximum activation
+   int startInhibitionRangeColumnIndex = dNumColumns - dSpatialPoolerConfig.inhibitionDistance/2;
+   int currentInhibitionRangeColumnIndex;   
    
    for (int columnIndex = 0; columnIndex < dNumColumns; columnIndex += 8)
    {      
-      __m256i ymm1_greater_total = _mm256_set1_epi32(0);
-      __m256i ymm2_column = _mm256_stream_load_si256((__m256i const*) &pColumnActivationTotalArray[columnIndex]);
+      __m256i ymm1_greater_counts = _mm256_set1_epi32(0);                        // Initialize counters to see how many other cols have larger activation values
+      __m256i ymm2_column = _mm256_stream_load_si256((__m256i const*) &dpColumnActivationTotalArray[columnIndex]);  // Load a vector of column activation totals
 
-      for (int inhibitionCount = 0; inhibitionCount < dInhibitionDistance; inhibitionCount += 8)
+      for (int inhibitionCount = 0; inhibitionCount < dSpatialPoolerConfig.inhibitionDistance; inhibitionCount += 8)
       {
          currentInhibitionRangeColumnIndex = startInhibitionRangeColumnIndex + columnIndex;
          if (currentInhibitionRangeColumnIndex > dNumColumns)
             currentInhibitionRangeColumnIndex -= dNumColumns;
 
-         __m256i ymm3_column_moving = _mm256_stream_load_si256((__m256i const*) &pColumnActivationTotalArray[currentInhibitionRangeColumnIndex]);
+         __m256i ymm3_column_moving = _mm256_stream_load_si256((__m256i const*) &dpColumnActivationTotalArray[currentInhibitionRangeColumnIndex]);
 
+         // Count the number of values larger than the column total in the 'moving' vector
          __m256i ymm3_greater_mask;
          //ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0x1B);  // Not needed, does nothing
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);  // By adding the masks, we are basically adding -1s together
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0xC6);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0xB1);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0x6C);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_permute4x64_epi64(ymm3_column_moving, 0xB1);  // Switch 2 128 bit halves
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0xC6);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0xB1);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
 
          ymm3_column_moving = _mm256_shuffle_epi32(ymm3_column_moving, 0x6C);
          ymm3_greater_mask = _mm256_cmpgt_epi32(ymm2_column, ymm3_column_moving);
-         ymm1_greater_total = _mm256_add_epi32(ymm1_greater_total, ymm3_greater_mask);
+         ymm1_greater_counts = _mm256_add_epi32(ymm1_greater_counts, ymm3_greater_mask);
       }
 
       // Check to see if any columns should be active
-      __m256i ymm4_active_mask = _mm256_cmpgt_epi32(ymm1_greater_total, ymm0_desired_active);  // Mask out the cols that are above the desired threshold
-      
-
-      int no_active_col_flag = _mm256_testz_si256(ymm4_active_mask, _mm256_set1_epi32(0xFF));  // Optimization to skip building indexes for vectors with no active cols
-      
-      // Prep the active cols to be stored in column state array (TODO: THESE NEXT INSTRUCTIONS COULD BE REDUCED/REMOVED IF ACTIVE STATE FLAG WAS 0XFF, WOULD MAKE TP2 EASIER TOO)
-      ymm4_active_mask = _mm256_blendv_epi8(_mm256_set1_epi32(0), _mm256_set1_epi32(eColumnState_Active), ymm4_active_mask);  // Change the 0xFF mask values to the active state flag
-      ymm4_active_mask = _mm256_shuffle_epi8(ymm4_active_mask, ymm4_32_to_8);  // Convert the 32 bit mask values to 8 bit values that are used in the storeage (256b vector to 64b vector)
-      
-      __m256i ymm5_new_states = _mm256_stream_load_si256((__m256i const*) pCurrentColumnStateArrayPtr);
-      ymm5_new_states = _mm256_add_epi8(ymm5_new_states, ymm4_active_mask);
-
-      // Store off the active states in the column state array
-      _mm256_maskstore_epi32((int*)pCurrentColumnStateArrayPtr, ymm5_64_mask, ymm5_new_states);  
-
-      // Create a list of the active state indexes for easy traversal of the active columns in later TP states
-      if (!no_active_col_flag)
+      __m256i ymm4_active_mask = _mm256_cmpgt_epi32(ymm0_desired_active, ymm1_greater_counts);  // Mask out the cols that have less than the desired count of active columns (these are active)
+            
+      if (_mm256_movemask_epi8(ymm4_active_mask))                                               // Optimization to skip building indexes for vectors with no active cols
       {
-         for (int i = 0; i < 8; i++)
+         // Press the 32bit mask values to 8 bit values so they can be stored in the column state flags
+         switch (columnIndex % 32)
          {
-            if (pCurrentColumnStateArrayPtr[i] && eColumnState_Active)
-            {
-               dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + i;
-               dCurrentNumActiveColumns++;
-            }
+         case 7:  ymm5_column_states = _mm256_shuffle_epi8(ymm4_active_mask, _mm256_set_epi32(0x00000000, 0x01010101, 0x02020202, 0x03030303, 0x00000000, 0x01010101, 0x02020202, 0x03030303)); break;
+         case 15: ymm5_column_states = _mm256_shuffle_epi8(ymm4_active_mask, _mm256_set_epi32(0x04040404, 0x05050505, 0x06060606, 0x07070707, 0x04040404, 0x05050505, 0x06060606, 0x07070707)); break;
+         case 23: ymm5_column_states = _mm256_shuffle_epi8(ymm4_active_mask, _mm256_set_epi32(0x08080808, 0x09090909, 0x0A0A0A0A, 0x0B0B0B0B, 0x08080808, 0x09090909, 0x0A0A0A0A, 0x0B0B0B0B)); break;
+         case 31: ymm5_column_states = _mm256_shuffle_epi8(ymm4_active_mask, _mm256_set_epi32(0x0C0C0C0C, 0x0D0D0D0D, 0x0E0E0E0E, 0x0F0F0F0F, 0x0C0C0C0C, 0x0D0D0D0D, 0x0E0E0E0E, 0x0F0F0F0F));
+
+            // Store the column state flags for columns that had activation higher than the current minimum
+            ymm5_column_states = _mm256_permutevar8x32_epi32(ymm5_column_states, _mm256_set_epi32(0, 2, 4, 6, 1, 3, 5, 7));
+            ymm5_column_states = _mm256_mullo_epi32(ymm5_column_states, _mm256_set1_epi32(-eColumnState_Active));
+
+            __m256i ymm6_new_column_states = _mm256_load_si256((__m256i*)GetCurrentColumnStateArrayPtr(columnIndex - 31));  // Load the old flags
+            ymm6_new_column_states = _mm256_or_si256(ymm6_new_column_states, ymm5_column_states);                           // OR in the new active flags
+            _mm256_stream_si256((__m256i*)GetCurrentColumnStateArrayPtr(columnIndex - 31), ymm6_new_column_states);         // Store the new flags
+            break;
+
+         default:
+            // Do nothing in these cases
+            break;
+         }
+
+         // Walk the values in the active_mask, this isn't AVX, but there shouldn't be too many active columns and not much room for parallel speedup
+         int activeStateBitMask = _mm256_movemask_epi8(ymm4_active_mask);
+
+         // Create a list of the active state indexes for easy traversal of the active columns in later TP states
+         if (activeStateBitMask & 0xF) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 0; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 0]++; }
+         if (activeStateBitMask & 0xF0) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 1; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 1]++; }
+         if (activeStateBitMask & 0xF00) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 2; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 2]++; }
+         if (activeStateBitMask & 0xF000) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 3; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 3]++; }
+         if (activeStateBitMask & 0xF0000) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 4; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 4]++; }
+         if (activeStateBitMask & 0xF00000) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 5; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 5]++; }
+         if (activeStateBitMask & 0xF000000) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 6; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 6]++; }
+         if (activeStateBitMask & 0xF0000000) { dpActiveColumnIndexArray[dCurrentNumActiveColumns] = columnIndex + 7; dCurrentNumActiveColumns++; dpColumnActiveDutyCycleTotals[columnIndex + 7]++; }
+      }
+
+      // Subtract the oldest active state columns from the duty cycle totals
+      uint8_t* pOldestColumnStateArrayPtr = GetOldestColumnStateArrayPtr(0);
+      for (int i = 0; i < 8; i++)
+      {
+         if (pOldestColumnStateArrayPtr[i] && eColumnState_Active)
+         {
+            dpColumnActiveDutyCycleTotals[columnIndex + i]--;
          }
       }
-      pCurrentColumnStateArrayPtr += 8;      
+      
    }
 
 
    // SP3 - Spatial Learning
 
    // Strengthen/Weaken the synaspe permanences on the active columns for this input pattern
+   pCurrentInputPtr = (__m256i*)dpInputSpace->GetBuffer();
+
    for (int i = 0; i < dCurrentNumActiveColumns; i++)
    {
       int activeColumnIndex = dpActiveColumnIndexArray[i];
@@ -206,105 +260,84 @@ void vRegion::PerformSpatialPooling(bool allowLearning)
       {
          __m256i ymm0_increase = _mm256_set1_epi8((char)VHTM_PERMANENCE_INCREASE);     // Load the value we will increase the correct synaspes
          __m256i ymm1_decrease = _mm256_set1_epi8((char)VHTM_PERMANENCE_DECREASE);     // Load the value we will decrease the correct synaspes
-         __m256i ymm2_input = _mm256_load_si256(pCurrentInputPtr);                  // Load the input data to use as mask
+         __m256i ymm2_input = _mm256_load_si256(pCurrentInputPtr);                     // Load the input data to use as mask
          __m256i ymm3_update = _mm256_blendv_epi8(ymm0_increase, ymm1_decrease, ymm2_input);
-         __m256i ymm4_perm = _mm256_load_si256(pCurrentProximalPermPtr);         // Load the proximal synaspe permanence values
-         __m256i ymm4_perm = _mm256_adds_epi8(ymm4_perm, ymm3_update);
-         _mm256_stream_si256(pCurrentProximalPermPtr, ymm4_perm);
+         __m256i ymm4_perm2 = _mm256_load_si256(pCurrentProximalPermPtr);               // Load the proximal synaspe permanence values
+         ymm4_perm2 = _mm256_adds_epi8(ymm4_perm2, ymm3_update);
+         _mm256_stream_si256(pCurrentProximalPermPtr, ymm4_perm2);                      // Store the new permanences
          pCurrentProximalPermPtr += sizeof(__m256i);
+         pCurrentInputPtr += sizeof(__m256i);
       }
    }
 
-   // Update the statistics for calculating receptive range - Max Duty Rate
+   // Process the statistics for calculating receptive range - Column Active Duty Rate
    for (int columnIndex = 0; columnIndex < dNumColumns; columnIndex += 8)
    {
       // Modify the Column Boost Array using the updated ACTIVE duty cycle
-      __m256i ymm5_overlap_totals = _mm256_load_si256((__m256i*)&dpColumnActiveDutyCycleTotals[columnIndex]);
+      __m256i ymm5_active_duty_cycle = _mm256_load_si256((__m256i*)&dpColumnActiveDutyCycleTotals[currentInhibitionRangeColumnIndex]);
 
+      // Find the max duty cycle of the column neighbors, then take ~1% for the min
       __m256i ymm6_max_value;
       __m256i ymm7_shuffled_max;
-      for (int inhibitionCount = 0; inhibitionCount < dInhibitionDistance; inhibitionCount += 8)
+      for (int inhibitionIndex = 0; inhibitionIndex < dSpatialPoolerConfig.inhibitionDistance; inhibitionIndex += 8)
       {
          currentInhibitionRangeColumnIndex = startInhibitionRangeColumnIndex + columnIndex;
          if (currentInhibitionRangeColumnIndex > dNumColumns)
             currentInhibitionRangeColumnIndex -= dNumColumns;
 
-         ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
+         ymm7_shuffled_max = _mm256_load_si256((__m256i*)&dpColumnActiveDutyCycleTotals[currentInhibitionRangeColumnIndex]);
+         ymm6_max_value = _mm256_max_epi32(ymm7_shuffled_max, ymm6_max_value);
       }
 
       // Find the max in the vector (horizontally)
       ymm7_shuffled_max = _mm256_shuffle_epi32(ymm6_max_value, 0x4E);
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
+      ymm6_max_value = _mm256_max_epi32(ymm7_shuffled_max, ymm6_max_value);
       ymm7_shuffled_max = _mm256_shuffle_epi32(ymm6_max_value, 0xE4);
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
-      ymm7_shuffled_max = _mm256_permute4x64_epi64(ymm6_max_value, 0xB1);              // Switch 2 128 bit halves
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
-      __m256i ymm6_max_value = _mm256_srli_epi32(ymm6_max_value, 7);                   // Divide by 128 to get about ~1% of max
-      __m256i ymm7_boost_mask = _mm256_cmpgt_epi32(ymm6_max_value, ymm5_overlap_totals); // Compare to see which are below min
-
-      // Adjust the boost for columns that are above and below the min
-      __m256i ymm8_boosted = _mm256_load_si256((__m256i*)&dpColumnBoostArray[columnIndex]);
-      __m256i ymm9_boost_delta = _mm256_blendv_epi8(_mm256_set1_epi32(dColumnBoostIncrement), _mm256_set1_epi32(-dColumnBoostIncrement), ymm7_boost_mask);
-
-      // Make sure we have not gone above the max or below the min
-      ymm7_boost_mask = _mm256_cmpgt_epi32(_mm256_set1_epi32(dColumnBoostMax), ymm8_boosted);
-      ymm9_boost_delta = _mm256_and_si256(ymm9_boost_delta, ymm7_boost_mask);
-
-      ymm7_boost_mask = _mm256_cmpgt_epi32(ymm8_boosted, _mm256_set1_epi32(dColumnBoostMin));
-      ymm9_boost_delta = _mm256_and_si256(ymm9_boost_delta, ymm7_boost_mask);
-
-      // Store off the modified boost values
-      ymm8_boosted = _mm256_add_epi32(ymm8_boosted, ymm9_boost_delta);
-      _mm256_stream_si256((__m256i*)&dpColumnBoostArray[columnIndex], ymm8_boosted);
+      ymm6_max_value = _mm256_max_epi32(ymm7_shuffled_max, ymm6_max_value);
+      ymm7_shuffled_max = _mm256_permute4x64_epi64(ymm6_max_value, 0xB1);       // Switch 2 128 bit halves
+      ymm6_max_value = _mm256_max_epi32(ymm7_shuffled_max, ymm6_max_value);
+      ymm6_max_value = _mm256_srli_epi32(ymm6_max_value, 7);                   // Divide by 128 to get about ~1% of max (max becomes the min)
       
+      __m256i ymm8_boost_mask = _mm256_cmpgt_epi32(ymm6_max_value, ymm5_active_duty_cycle); // Compare to see which columns are below min, and then we will raise their boost
 
-
-      // Modify the Column Boost Array using the updated OVERLAP duty cycle
-      __m256i ymm5_overlap_totals = _mm256_load_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex]);
-      for (int inhibitionCount = 0; inhibitionCount < dInhibitionDistance; inhibitionCount += 8)
+      if (_mm256_testz_si256(ymm8_boost_mask, _mm256_set1_epi32(0xFF)) > 0)                 // Optimization to skip boost adjustment if all columns are above the minimum
       {
-         currentInhibitionRangeColumnIndex = startInhibitionRangeColumnIndex + columnIndex;
-         if (currentInhibitionRangeColumnIndex > dNumColumns)
-            currentInhibitionRangeColumnIndex -= dNumColumns;
+         // Adjust the boost for columns that are above and below the min
+         __m256i ymm9_boosted = _mm256_load_si256((__m256i*)&dpColumnBoostArray[columnIndex]);
+         __m256i ymm10_boost_delta = _mm256_blendv_epi8(_mm256_set1_epi32(dSpatialPoolerConfig.boostIncrement), _mm256_set1_epi32(-dSpatialPoolerConfig.boostIncrement), ymm8_boost_mask);
 
-         ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
+         // Make sure we have not gone above the max or below the min
+         ymm8_boost_mask = _mm256_cmpgt_epi32(_mm256_set1_epi32(dSpatialPoolerConfig.boostMax), ymm9_boosted);
+         ymm10_boost_delta = _mm256_and_si256(ymm10_boost_delta, ymm8_boost_mask);
+
+         ymm8_boost_mask = _mm256_cmpgt_epi32(ymm9_boosted, _mm256_set1_epi32(dSpatialPoolerConfig.boostMin));
+         ymm10_boost_delta = _mm256_and_si256(ymm10_boost_delta, ymm8_boost_mask);
+
+         // Store off the modified boost values
+         ymm9_boosted = _mm256_add_epi32(ymm9_boosted, ymm10_boost_delta);
+         _mm256_stream_si256((__m256i*)&dpColumnBoostArray[columnIndex], ymm9_boosted);   // Save the newly adjusted boost values
       }
 
-      // Find the max in the vector (horizontally)
-      ymm7_shuffled_max = _mm256_shuffle_epi32(ymm6_max_value, 0x4E);
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
-      ymm7_shuffled_max = _mm256_shuffle_epi32(ymm6_max_value, 0xE4);
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
-      ymm7_shuffled_max = _mm256_permute4x64_epi64(ymm6_max_value, 0xB1);              // Switch 2 128 bit halves
-      ymm6_max_value = _mm256_max_epi32(ymm5_overlap_totals, ymm6_max_value);
-      __m256i ymm6_max_value = _mm256_srli_epi32(ymm6_max_value, 7);                   // Divide by 128 to get about ~1% of max
-      __m256i ymm7_overlap_mask = _mm256_cmpgt_epi32(ymm5_overlap_totals, ymm6_max_value); // Compare to see which are ABOVE min
-
-      // Walk the values in the mask that represent the cols that are below the overlap duty cycle min, then increase the perms of those cols
-      __m256i ymm8_test_mask = _mm256_set_epi32(0,0,0,0,0,0,0,0xFFFFFFFFF);
-      for (int i = 0; i < 4; i++)
+      // Walk the values in the mask that represent the cols that the OVERLAP is below the ACTIVE duty cycle min (not sure why this isn't overlap duty cycle), increase all the perms of those cols
+      __m256i ymm8_overlap_duty_cycle = _mm256_load_si256((__m256i*)&dpColumnOverlapDutyCycleTotals[columnIndex]); 
+      __m256i ymm9_overlap_mask = _mm256_cmpgt_epi32(ymm6_max_value, ymm5_active_duty_cycle); // Compare to see which columns are below min active duty cycle
+      int activeDutyBitMask = _mm256_movemask_epi8(ymm9_overlap_mask);
+      if (activeDutyBitMask)
       {
-         if (_mm256_testz_si256(ymm7_overlap_mask, ymm8_test_mask))
-         {
-            IncreaseProximalPermanences(columnIndex + i);
-         }
-         ymm8_test_mask = _mm256_slli_si256(ymm8_test_mask, 4);
-      }
-      ymm8_test_mask = _mm256_set_epi32(0, 0, 0, 0xFFFFFFFFF, 0, 0, 0, 0);
-      for (int i = 0; i < 4; i++)
-      {
-         if (_mm256_testz_si256(ymm7_overlap_mask, ymm8_test_mask))
-         {
-            IncreaseProximalPermanences(columnIndex + i);
-         }
-         ymm8_test_mask = _mm256_slli_si256(ymm8_test_mask, 4);
+         if (activeDutyBitMask & 0xF) IncreaseProximalPermanences(columnIndex + 0);
+         if (activeDutyBitMask & 0xF0) IncreaseProximalPermanences(columnIndex + 1);
+         if (activeDutyBitMask & 0xF00) IncreaseProximalPermanences(columnIndex + 2);
+         if (activeDutyBitMask & 0xF000) IncreaseProximalPermanences(columnIndex + 3);
+         if (activeDutyBitMask & 0xF0000) IncreaseProximalPermanences(columnIndex + 4);
+         if (activeDutyBitMask & 0xF00000) IncreaseProximalPermanences(columnIndex + 5);
+         if (activeDutyBitMask & 0xF000000) IncreaseProximalPermanences(columnIndex + 6);
+         if (activeDutyBitMask & 0xF0000000) IncreaseProximalPermanences(columnIndex + 7);
       }
    }
 
    // TODO: CURRENTLY WE ASSUME dInhibitionDistance is constant because the input pattern will always cover all the cells equally, this
    // means the average distance of connected synaspes is 1/2 of the dNumCols.  If this assumption changes, then add AverageReceptiveField()
 
-   free(pColumnActivationTotalArray);
 }
 
 
@@ -316,7 +349,7 @@ void vRegion::IncreaseProximalPermanences(int columnIndex)
    for (int i = 0; i < numPermanences; i += 32)
    {
       __m256i ymm0_perm = _mm256_load_si256((__m256i*)&pPermanences[i]);
-      ymm0_perm = _mm256_adds_epi8(ymm0_perm, _mm256_set1_epi8(dColumnPermanenceIncrement));
+      ymm0_perm = _mm256_adds_epi8(ymm0_perm, _mm256_set1_epi8(dSpatialPoolerConfig.noOverlapPermanenceIncrement));
       _mm256_stream_si256((__m256i*)&pPermanences[i], ymm0_perm);
    }
 }

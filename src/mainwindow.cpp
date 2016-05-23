@@ -21,9 +21,19 @@
 #include "CJTrace.h"
 #include "CJCli.h"
 
+
+
+#include "mainwindow.h"
+
+
+#ifdef USE_HTM_VECTOR_CLASSES
+#include "htm/vView.h"
+#include "htm/vNetworkManager.h"
+#else
 #include "htm/View.h"
 #include "htm/NetworkManager.h"
-#include "mousecontrols.h"
+#endif
+
 #include "controlwidget.h"
 #include "consoledock.h"
 #include "basicgraph.h"
@@ -64,10 +74,18 @@ MainWindow::MainWindow()
 
    // Create the NetworkManager
    dpConsoleDock = new ConsoleDock(this);  // This creates the CLI Object...TODO: BREAK OUT CLI AND CONSOLE CREATION
+#ifdef USE_HTM_VECTOR_CLASSES
+   dpHtmNetworkManager = new vNetworkManager();
+   pControlWidget = new ControlWidget(this, dpHtmNetworkManager); // Create the tabbed widget for the frames in the right-hand panel.
+   dpHtmView1 = new vView(pControlWidget);
+   dpHtmView2 = new vView(pControlWidget);
+#else
    dpHtmNetworkManager = new NetworkManager();
    pControlWidget = new ControlWidget(this, dpHtmNetworkManager); // Create the tabbed widget for the frames in the right-hand panel.
    dpHtmView1 = new View(pControlWidget);
    dpHtmView2 = new View(pControlWidget);
+#endif
+
    dpBasicGraph1 = new InputspacePredictionGraph(this, dpHtmNetworkManager);
    dpBasicGraph2 = new InputspaceOverlapGraph(this, dpHtmNetworkManager);
 
@@ -209,11 +227,19 @@ void MainWindow::UpdateUIForNetworkLoad()
    }
 }
 
+#ifdef USE_HTM_VECTOR_CLASSES
+void MainWindow::UpdateUIForInfoSelection(vRegion *_region, vInputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex)
+{
+   if (dpHtmView1 != NULL) dpHtmView1->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
+   if (dpHtmView2 != NULL) dpHtmView2->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
+}
+#else
 void MainWindow::UpdateUIForInfoSelection(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex)
 {
    if (dpHtmView1 != NULL) dpHtmView1->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
    if (dpHtmView2 != NULL) dpHtmView2->SetSelected(_region, _input, _colX, _colY, _cellIndex, _segmentIndex);
 }
+#endif
 
 
 void MainWindow::ViewMode_UpdateWhileRunning()
@@ -286,6 +312,8 @@ void MainWindow::loadDataFile()
 
       // Parse the data file
       QString error_msg;
+#ifndef USE_HTM_VECTOR_CLASSES
+
       bool result = dpHtmNetworkManager->LoadData(QFileInfo(*file).fileName(), file, error_msg);
 
       if (result == false)
@@ -293,6 +321,7 @@ void MainWindow::loadDataFile()
          QMessageBox::critical(this, "Error loading data.", error_msg, QMessageBox::Ok);
          return;
       }
+#endif
 
       // Update the UI to reflect the network's data that has been loaded.
       UpdateUIForNetworkLoad();
@@ -316,6 +345,7 @@ void MainWindow::saveDataFile()
          return;
       }
 
+#ifndef USE_HTM_VECTOR_CLASSES
       // Save the data file
       QString error_msg;
       bool result = dpHtmNetworkManager->SaveData(QFileInfo(*file).fileName(), file, error_msg);
@@ -325,6 +355,7 @@ void MainWindow::saveDataFile()
          QMessageBox::critical(this, "Error saving data.", error_msg, QMessageBox::Ok);
          return;
       }
+#endif
    }
 }
 
@@ -447,7 +478,7 @@ CliReturnCode CliMainWindowCommandSet::CliCommand_stepNetwork(CJConsole* pConsol
 CliReturnCode CliMainWindowCommandSet::CliCommand_vectorTest(CJConsole* pConsole, CliCommand* pCmd, CliParams* pParams)
 {
    // Create the classes
-   vInputSpace* pInputSpace = new vInputSpace(16, 16);
+/*   vInputSpace* pInputSpace = new vInputSpace(16, 16);
    vRegion* pRegion = new vRegion(pInputSpace, eRegionSize_16x16x8);
 
    pInputSpace->SetupEncoder(8, 16, 0, 16);
@@ -455,6 +486,6 @@ CliReturnCode CliMainWindowCommandSet::CliCommand_vectorTest(CJConsole* pConsole
 
    pRegion->CreateRegion();
    pRegion->Step();
-
+   */
    return eCliReturn_Success;
 }

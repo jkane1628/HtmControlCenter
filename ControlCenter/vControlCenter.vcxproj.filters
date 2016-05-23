@@ -64,6 +64,12 @@
     <ClCompile Include="GeneratedFiles\Debug\moc_consoledock.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\controlcenter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_controlcenter.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\controlwidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -79,59 +85,20 @@
     <ClCompile Include="GeneratedFiles\Debug\moc_mainwindow.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\mousecontrols.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mousecontrols.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\QCustomPlot\qcustomplot.cpp">
       <Filter>QCustomPlot</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_qcustomplot.cpp">
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\htm\Cell.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\Classifier.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\Column.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\ColumnDisp.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\DistalSynapse.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\FastHash.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\FastList.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\InputSpace.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\MemManager.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\NetworkManager.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\ProximalSynapse.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\Region.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\Segment.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\SegmentUpdateInfo.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\Synapse.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\View.cpp">
-      <Filter>HTM Source</Filter>
+    <ClCompile Include="GeneratedFiles\Debug\moc_View.cpp">
+      <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\src\CJLib\win\CJConsole.cpp">
       <Filter>CJLib\win</Filter>
@@ -154,7 +121,10 @@
     <ClCompile Include="..\src\CJLib\common\CJTrace.cpp">
       <Filter>CJLib\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\htm\SDR.cpp">
+    <ClCompile Include="..\src\htm\vRegion.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\vInputSpace.cpp">
       <Filter>HTM Source</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_basicgraph.cpp">
@@ -163,29 +133,23 @@
     <ClCompile Include="GeneratedFiles\Release\moc_consoledock.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_controlcenter.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_controlwidget.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_mainwindow.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mousecontrols.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_qcustomplot.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\htm\vClassifier.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\vColumnDisp.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\vInputSpace.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\vNetworkManager.cpp">
-      <Filter>HTM Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\htm\vRegion.cpp">
-      <Filter>HTM Source</Filter>
+    <ClCompile Include="GeneratedFiles\Release\moc_View.cpp">
+      <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\src\htm\vRegionSpatialPooler.cpp">
       <Filter>HTM Source</Filter>
@@ -193,14 +157,20 @@
     <ClCompile Include="..\src\htm\vView.cpp">
       <Filter>HTM Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\htm\vColumnDisp.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\htm\vNetworkManager.cpp">
+      <Filter>HTM Source</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\htm\Pattern.cpp">
       <Filter>HTM Source</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_View.cpp">
-      <Filter>Generated Files\Debug</Filter>
+    <ClCompile Include="..\src\htm\vClassifier.cpp">
+      <Filter>HTM Source</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_vView.cpp">
-      <Filter>Generated Files\Debug</Filter>
+    <ClCompile Include="..\src\htm\SDR.cpp">
+      <Filter>HTM Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -213,7 +183,13 @@
     <CustomBuild Include="..\src\FormFiles\Console.ui">
       <Filter>Form Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\controlcenter.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\src\FormFiles\controlwidget.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\src\FormFiles\MouseControls.ui">
       <Filter>Form Files</Filter>
     </CustomBuild>
     <CustomBuild Include="..\src\basicgraph.h">
@@ -222,20 +198,20 @@
     <CustomBuild Include="..\src\consoledock.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\src\controlcenter.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\src\controlwidget.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="..\src\mainwindow.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\src\mousecontrols.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\src\QCustomPlot\qcustomplot.h">
       <Filter>QCustomPlot</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\htm\View.h">
-      <Filter>HTM Source</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\src\htm\vView.h">
-      <Filter>Generated Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -245,65 +221,14 @@
     <ClInclude Include="GeneratedFiles\ui_Console.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_controlcenter.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
     <ClInclude Include="GeneratedFiles\ui_controlwidget.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\htm\Cell.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Classifier.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Column.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\ColumnDisp.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\DataSpace.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\DistalSynapse.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\FastHash.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\FastList.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\InputSpace.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\MemManager.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\MemObject.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\MemObjectType.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\NetworkManager.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\ProximalSynapse.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Region.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Segment.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\SegmentUpdateInfo.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Synapse.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\Utils.h">
-      <Filter>HTM Source</Filter>
+    <ClInclude Include="GeneratedFiles\ui_MouseControls.h">
+      <Filter>Generated Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\CJLib\include\CJAssert.h">
       <Filter>CJLib\include</Filter>
@@ -353,31 +278,31 @@
     <ClInclude Include="..\src\CJLib\include\CJTypes.h">
       <Filter>CJLib\include</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\htm\SDR.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\vClassifier.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\vColumnDisp.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\vDataSpace.h">
+    <ClInclude Include="..\src\htm\vRegion.h">
       <Filter>HTM Source</Filter>
     </ClInclude>
     <ClInclude Include="..\src\htm\vInputSpace.h">
       <Filter>HTM Source</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\htm\vNetworkManager.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\htm\vRegion.h">
-      <Filter>HTM Source</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\htm\vView.h">
       <Filter>HTM Source</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\htm\vColumnDisp.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\vNetworkManager.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\vDataSpace.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\htm\Pattern.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\vClassifier.h">
+      <Filter>HTM Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\htm\SDR.h">
       <Filter>HTM Source</Filter>
     </ClInclude>
   </ItemGroup>

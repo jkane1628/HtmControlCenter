@@ -11,13 +11,23 @@
 #include <QTime>
 #include <QTimerEvent>
 
+#include "MainWindow.h"
+#ifdef USE_HTM_VECTOR_CLASSES
+#include "htm/vNetworkManager.h"
+#include "htm/vRegion.h"
+#else
 #include "htm/Segment.h"
 #include "htm/Cell.h"
 #include "htm/NetworkManager.h"
-#include "MainWindow.h"
+#endif
+
 #include "controlwidget.h"
 
+#ifdef USE_HTM_VECTOR_CLASSES
+ControlWidget::ControlWidget(MainWindow* pMainWindow, vNetworkManager *pNetworkManager)
+#else
 ControlWidget::ControlWidget(MainWindow* pMainWindow, NetworkManager *pNetworkManager)
+#endif
 {
    dpMainWindow = pMainWindow;
    dpNetworkManager = pNetworkManager;
@@ -311,6 +321,8 @@ void ControlWidget::UpdateSelectedInfo()
       return;
    }
 
+
+#ifndef USE_HTM_VECTOR_CLASSES
    Cell *selCell = NULL;
    QString infoString;
    QTextStream info(&infoString);
@@ -427,9 +439,14 @@ void ControlWidget::UpdateSelectedInfo()
    deselectSegButton->setVisible(selCell != NULL);
 
    selectedInfo->setText(infoString);
+#endif
 }
 
+#ifdef USE_HTM_VECTOR_CLASSES
+void ControlWidget::SetSelected(vRegion *_region, vInputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex)
+#else
 void ControlWidget::SetSelected(Region *_region, InputSpace *_input, int _colX, int _colY, int _cellIndex, int _segmentIndex)
+#endif
 {
    selRegion = _region;
    selInput = _input;

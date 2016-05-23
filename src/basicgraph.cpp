@@ -1,11 +1,23 @@
 
 #include "CJTrace.h"
+#include "CJTypes.h"
+
+#include "basicgraph.h"
+
+#ifdef USE_HTM_VECTOR_CLASSES
+#include "htm/vNetworkManager.h"
+#include "htm/vInputSpace.h"
+#include "htm/vClassifier.h"
+#else
 #include "htm/NetworkManager.h"
 #include "htm/InputSpace.h"
 #include "htm/Classifier.h"
+#endif 
+
 #include "htm/SDR.h"
 
-#include "basicgraph.h"
+
+
 
 
 BasicGraph::BasicGraph(QWidget *parent)
@@ -186,8 +198,11 @@ BOOL BasicGraph::LoadCSVDataFile(QString filename, TimeSeriesData* pOutputData)
    return TRUE;
 }
 
-
+#ifdef USE_HTM_VECTOR_CLASSES
+InputspacePredictionGraph::InputspacePredictionGraph(QWidget *pParent, vNetworkManager* pNetworkManager)
+#else
 InputspacePredictionGraph::InputspacePredictionGraph(QWidget *pParent, NetworkManager* pNetworkManager)
+#endif
 : BasicGraph(pParent),
 dpNetworkManager(pNetworkManager)
 {
@@ -286,7 +301,7 @@ void InputspacePredictionGraph::UpdateGraphData(int time)
 void InputspacePredictionGraph::ReplotGraph()
 {
    ui.basicGraph->xAxis->setRange(dLastRecordedTime - 100, dLastRecordedTime + 10);
-   ui.basicGraph->yAxis->setRange(dpInputSpace->dpSdrEncoder->dMinValue, dpInputSpace->dpSdrEncoder->dMaxValue);
+   ui.basicGraph->yAxis->setRange(dpInputSpace->GetEncoderMinValue(), dpInputSpace->GetEncoderMaxValue());
    OnReplot();
 }
 
@@ -296,7 +311,11 @@ void InputspacePredictionGraph::ReplotGraph()
 //InputspaceOverlapGraph
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_HTM_VECTOR_CLASSES
+InputspaceOverlapGraph::InputspaceOverlapGraph(QWidget *pParent, vNetworkManager* pNetworkManager)
+#else
 InputspaceOverlapGraph::InputspaceOverlapGraph(QWidget *pParent, NetworkManager* pNetworkManager)
+#endif
 : BasicGraph(pParent),
 dpNetworkManager(pNetworkManager)
 {
